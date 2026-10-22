@@ -38,7 +38,7 @@ func TestReadSSwan(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			var p Profile
-			ca, err := p.readSSwan(member{"client.sswan", newSSwan(t, nil, test.change)})
+			ca, err := p.readSSwan(File{"client.sswan", newSSwan(t, nil, test.change)})
 			if err != nil || ca != nil {
 				t.Fatalf("readSSwan: %v, the CA %v, want neither", err, ca)
 			}
@@ -91,7 +91,7 @@ func TestReadSSwanErrors(t *testing.T) {
 			`esp-proposal "aes128gcm16,,aes256gcm16" is not in strongSwan's syntax for proposals`},
 	} {
 		var p Profile
-		_, err := p.readSSwan(member{"client.sswan", newSSwan(t, nil, test.change)})
+		_, err := p.readSSwan(File{"client.sswan", newSSwan(t, nil, test.change)})
 		if want := "client.sswan: " + test.want; err == nil || !strings.HasPrefix(err.Error(), want) {
 			t.Errorf("readSSwan: %v, want %s", err, want)
 		}
@@ -108,7 +108,7 @@ func TestReadSSwanProposals(t *testing.T) {
 	} {
 		change := func(object map[string]any) { object["ike-proposal"] = proposal }
 		var p Profile
-		if _, err := p.readSSwan(member{"client.sswan", newSSwan(t, nil, change)}); err != nil {
+		if _, err := p.readSSwan(File{"client.sswan", newSSwan(t, nil, change)}); err != nil {
 			t.Errorf("%s: %v", proposal, err)
 		}
 	}
@@ -121,7 +121,7 @@ func TestReadSSwanCert(t *testing.T) {
 	pemCA := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: pki.ca.Raw})
 	for _, data := range [][]byte{pki.ca.Raw, pemCA} {
 		var p Profile
-		ca, err := p.readSSwan(member{"client.sswan",
+		ca, err := p.readSSwan(File{"client.sswan",
 			newSSwan(t, nil, remote("cert", base64.StdEncoding.EncodeToString(data)))})
 		if err != nil || ca == nil || !ca.Equal(pki.ca) {
 			t.Errorf("readSSwan: %v, the CA %v, want %s", err, ca, pki.ca.Subject)
@@ -129,7 +129,7 @@ func TestReadSSwanCert(t *testing.T) {
 	}
 
 	var p Profile
-	_, err := p.readSSwan(member{"client.sswan",
+	_, err := p.readSSwan(File{"client.sswan",
 		newSSwan(t, nil, remote("cert", base64.StdEncoding.EncodeToString(pki.cert.Raw)))})
 	want := "client.sswan: remote.cert pins the server's certificate, CN=client,O=Test VPN, " +
 		"and ikeward checks the server only by its CA"

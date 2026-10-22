@@ -119,11 +119,12 @@ docker compose -p ikeward-integration down --volumes --remove-orphans --rmi loca
 
 ## What ikeward reads of a profile
 
-To see what ikeward reads of a client profile, name its zip in `IKEWARD_PROFILE`. The test logs the
-server, the proposals, the certificate, the CA and the file it came from. It logs whether the
-`.p12` has a password, but no secret. It reads a `.p12`'s password from the file that
-`IKEWARD_PROFILE_PASSWORD_FILE` names.
+To see what ikeward reads of a client profile, name its files in `IKEWARD_PROFILE` by their path
+without the extension, as `/root/vpnclient` for `/root/vpnclient.p12`. The test reads the `.p12`
+and the `.sswan`, and the `.mobileconfig` where there is one. It logs the server, the proposals,
+the certificate, the CA and the file it came from. It logs whether the `.p12` has a password, but
+no secret. It reads a `.p12`'s password from the file that `IKEWARD_PROFILE_PASSWORD_FILE` names.
 
 ```sh
-IKEWARD_PROFILE=ZIP go test -count=1 -v -run 'TestIssuedProfile$' ./internal/profile
+IKEWARD_PROFILE=PATH/NAME go test -count=1 -v -run 'TestIssuedProfile$' ./internal/profile
 ```

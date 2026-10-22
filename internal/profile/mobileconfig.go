@@ -13,15 +13,15 @@ import (
 
 // rootPayloads returns the certificates of the .mobileconfig f's root payloads, the
 // com.apple.security.root dicts in its PayloadContent.
-func rootPayloads(f member) ([]*x509.Certificate, error) {
+func rootPayloads(f File) ([]*x509.Certificate, error) {
 	// A signed profile is DER, which starts with a SEQUENCE, around the plist.
-	if bytes.HasPrefix(f.data, []byte{0x30}) {
+	if bytes.HasPrefix(f.Data, []byte{0x30}) {
 		return nil, fmt.Errorf("%s: it is signed, and ikeward reads only an unsigned XML plist",
-			f.name)
+			f.Name)
 	}
-	top, err := decodePlist(f.data)
+	top, err := decodePlist(f.Data)
 	if err != nil {
-		return nil, fmt.Errorf("%s: not an XML plist: %w", f.name, err)
+		return nil, fmt.Errorf("%s: not an XML plist: %w", f.Name, err)
 	}
 	dict, _ := top.(map[string]any)
 	payloads, _ := dict["PayloadContent"].([]any)
@@ -33,16 +33,16 @@ func rootPayloads(f member) ([]*x509.Certificate, error) {
 		}
 		data, ok := payload["PayloadContent"].([]byte)
 		if !ok {
-			return nil, fmt.Errorf("%s: payload %d, a root, holds no data", f.name, i+1)
+			return nil, fmt.Errorf("%s: payload %d, a root, holds no data", f.Name, i+1)
 		}
 		cert, err := parseCertificate(data)
 		if err != nil {
-			return nil, fmt.Errorf("%s: payload %d, a root: %w", f.name, i+1, err)
+			return nil, fmt.Errorf("%s: payload %d, a root: %w", f.Name, i+1, err)
 		}
 		certs = append(certs, cert)
 	}
 	if len(certs) == 0 {
-		return nil, fmt.Errorf("%s: it holds no root payload, com.apple.security.root", f.name)
+		return nil, fmt.Errorf("%s: it holds no root payload, com.apple.security.root", f.Name)
 	}
 	return certs, nil
 }

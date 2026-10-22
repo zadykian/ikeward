@@ -1,30 +1,25 @@
 # The profile
 
-`ikeward install --profile ZIP` reads the client's profile from one zip. The [README](../README.md)
-says how to install ikeward and run its commands.
+`ikeward install` reads the client's profile from its files, each given by its path. The
+[README](../README.md) says how to install ikeward and run its commands.
 
-## The zip
+## The files
 
 hwdsl2's `ikev2setup.sh` writes a client's profile as three files, each named for the client,
-`vpnclient` by default. ikeward takes two of them in one zip:
+`vpnclient` by default. ikeward takes two of them as they are, and reads no archive, such as a zip:
 
-```sh
-zip vpnclient.zip vpnclient.p12 vpnclient.sswan
-```
+- `NAME.p12`, given by `--p12`, holds the client's key and certificate, and the CA that issued
+  them, which `ikev2setup.sh` always puts there.
+- `NAME.sswan`, given by `--sswan`, is the profile for strongSwan's app for Android, in JSON. It
+  names the VPN server and the proposals, and holds the `.p12` again.
+- `NAME.mobileconfig`, given by `--mobileconfig`, is the profile for Apple's systems. It holds
+  another copy of the `.p12`, and, where the files have no password, that copy's password in plain
+  text. ikeward reads it only where neither the `.p12` nor the `.sswan` holds the CA. That never
+  happens with `ikev2setup.sh`'s files, so leave `--mobileconfig` out.
 
-- `NAME.p12` holds the client's key and certificate, and the CA that issued them, which
-  `ikev2setup.sh` always puts there.
-- `NAME.sswan` is the profile for strongSwan's app for Android, in JSON. It names the VPN server
-  and the proposals, and holds the `.p12` again.
-- `NAME.mobileconfig` is the profile for Apple's systems. It holds another copy of the `.p12`, and,
-  where the files have no password, that copy's password in plain text. ikeward reads it only where
-  neither the `.p12` nor the `.sswan` holds the CA, which never happens with `ikev2setup.sh`'s
-  files. So keep it out of the zip.
-
-The files share their NAME, which names the files `install` writes from them. ikeward passes over
-any other file in the zip, as a script for another system, and the `._` files macOS adds. Each of
-the three files holds the client's key, and so does the zip. Keep them where only root may read
-them, and never put them in an issue or a repository.
+The files share their NAME, which names the files `install` writes from them. Each of the three
+files holds the client's key. Keep them where only root may read them, and never put them in an
+issue or a repository.
 
 ## What ikeward reads
 
@@ -53,12 +48,12 @@ only root may read.
 
 ## What ikeward refuses
 
-`install` names the file and what is wrong with it, and changes nothing. It refuses a zip that:
+`install` names the file and what is wrong with it, and changes nothing. Where it cannot read a
+file, it names the flag that gave it. It refuses the files where:
 
-- holds no `.p12` or no `.sswan`, or two files of one kind;
-- holds files that are not named alike, as two profiles' would be;
-- holds one of those files over 1 MiB, more than a profile's file holds;
-- names its `.p12` with a sign other than letters, digits, `.`, `_` and `-`, or starts it with one
+- they are not named alike, as two profiles' would be;
+- one of them is over 1 MiB, more than a profile's file holds;
+- the `.p12`'s name holds a sign other than letters, digits, `.`, `_` and `-`, or starts with one
   of the last three.
 
 It refuses a `.sswan` that:

@@ -20,7 +20,7 @@ What each document holds. How to write them is in [writing.md](writing.md).
   - [nat.md](../../docs/nat.md): the order of the rules, `updown`'s routes, the ranges it learns,
     and the grants it refuses. The floors, the NAT rule, forwarded networks and the firewall, and
     setting them again.
-  - [profile.md](../../docs/profile.md): the profile's zip and its files, what ikeward reads of
+  - [profile.md](../../docs/profile.md): the profile's files and their flags, what ikeward reads of
     them, and what it refuses.
   - [development.md](../../docs/development.md): the commands, the installer's tests, the
     integration test, and the test that shows what ikeward reads of a profile.

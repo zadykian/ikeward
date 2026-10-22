@@ -62,6 +62,7 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
   `flags_test.go`, install's flags, their mistakes, and the floors that hold the VPN server's
   address. `password_test.go`, the `.p12`'s password. `status_test.go`, `watchdog_test.go`,
   `updown_test.go` and `routing_test.go` cover their commands, and `fake_test.go` the fake system.
+  `helpers_test.go` writes the profile's files and gives install's arguments.
 - `internal/install`: `install_test.go`, a run, again and with changes; `half_way_test.go`, a stop
   half way and the rerun. `dry_run_test.go`, `--dry-run`; `failures_test.go`, failed commands and
   output; `uninstall_test.go`, `uninstall`; `diff_test.go`, the diffs.
@@ -80,7 +81,7 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
   `NAME_test.go` beside `NAME.go`, and `run_test.go` for a tool's `run`, in `main.go`.
   `tools/valemirror/gate_test.go` runs `tools/valecheck` and Vale on a Markdown file and a Go
   file: each rule of `.vale.ini` must flag both.
-- `internal/profile`: `profile_test.go`, `Parse` and the zip; `sswan_test.go` and
+- `internal/profile`: `profile_test.go`, `Parse` and the summary; `sswan_test.go` and
   `mobileconfig_test.go`, their files; `errors_test.go`, what `Parse` refuses; `issued_test.go`, a
   real profile. `fixture_test.go` makes the test CA and the profile's files.
 - `tests/installer`: `install_test.go`, installs and updates; `refuses_test.go`, what `install.sh`

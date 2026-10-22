@@ -71,7 +71,7 @@ func TestRootPayloadsErrors(t *testing.T) {
 		{rootPayload("<string>MIIB</string>"), "payload 1, a root, holds no data"},
 		{rootPayload("<data>YWJj</data>"), "payload 1, a root: x509: malformed certificate"},
 	} {
-		_, err := rootPayloads(member{"client.mobileconfig", []byte(test.mobileconfig)})
+		_, err := rootPayloads(File{"client.mobileconfig", []byte(test.mobileconfig)})
 		want := "client.mobileconfig: " + test.want
 		if err == nil || !strings.HasPrefix(err.Error(), want) {
 			t.Errorf("rootPayloads(%q): %v, want %s", test.mobileconfig, err, want)

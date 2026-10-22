@@ -41,24 +41,24 @@ var (
 // readSSwan sets p's server, identities and proposals from the .sswan f, and returns its CA, which
 // is nil where it names none. What it takes goes into swanctl.conf, so it refuses what would not
 // fit there.
-func (p *Profile) readSSwan(f member) (*x509.Certificate, error) {
+func (p *Profile) readSSwan(f File) (*x509.Certificate, error) {
 	var s sswan
-	if err := json.Unmarshal(f.data, &s); err != nil {
-		return nil, fmt.Errorf("%s: not the JSON of a .sswan: %w", f.name, err)
+	if err := json.Unmarshal(f.Data, &s); err != nil {
+		return nil, fmt.Errorf("%s: not the JSON of a .sswan: %w", f.Name, err)
 	}
 	if s.Type != "ikev2-cert" {
 		return nil, fmt.Errorf("%s: the type is %q, and ikeward sets up only ikev2-cert, "+
-			"a login by certificate", f.name, s.Type)
+			"a login by certificate", f.Name, s.Type)
 	}
 	// An IPv6 zone is refused: swanctl.conf gives % a meaning of its own.
 	if addr, err := netip.ParseAddr(s.Remote.Addr); (err != nil || addr.Zone() != "") &&
 		!hostName.MatchString(s.Remote.Addr) {
 		return nil, fmt.Errorf("%s: remote.addr %q is neither a host name nor an address",
-			f.name, s.Remote.Addr)
+			f.Name, s.Remote.Addr)
 	}
 	port, err := sswanPort(s.Remote.Port)
 	if err != nil {
-		return nil, fmt.Errorf("%s: remote.port %s is not a port", f.name, s.Remote.Port)
+		return nil, fmt.Errorf("%s: remote.port %s is not a port", f.Name, s.Remote.Port)
 	}
 	p.Server, p.Port, p.RemoteID, p.LocalID = s.Remote.Addr, port, s.Remote.ID, s.Local.ID
 	if p.RemoteID == "" {
@@ -67,7 +67,7 @@ func (p *Profile) readSSwan(f member) (*x509.Certificate, error) {
 	for _, id := range [][2]string{{"remote.id", p.RemoteID}, {"local.id", p.LocalID}} {
 		if strings.ContainsFunc(id[1], badInID) {
 			return nil, fmt.Errorf("%s: %s %q holds a character an identity cannot",
-				f.name, id[0], id[1])
+				f.Name, id[0], id[1])
 		}
 	}
 	p.IKEProposals, p.ESPProposals = s.IKEProposal, s.ESPProposal
@@ -76,10 +76,10 @@ func (p *Profile) readSSwan(f member) (*x509.Certificate, error) {
 	} {
 		if !proposals.MatchString(proposal[1]) {
 			return nil, fmt.Errorf("%s: %s %q is not in strongSwan's syntax for proposals",
-				f.name, proposal[0], proposal[1])
+				f.Name, proposal[0], proposal[1])
 		}
 	}
-	return remoteCA(f.name, s.Remote.Cert)
+	return remoteCA(f.Name, s.Remote.Cert)
 }
 
 // badInID is a character that swanctl.conf cannot take in a quoted identity.

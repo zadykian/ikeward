@@ -1,9 +1,6 @@
 package tools
 
 import (
-	"archive/zip"
-	"bytes"
-	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -14,30 +11,12 @@ import (
 )
 
 // profile returns the files of a client profile that profiletest makes, by their names:
-// vpnclient.zip, and the vpnclient.p12 and vpnclient.sswan it holds.
+// vpnclient.p12 and vpnclient.sswan.
 func profile(t *testing.T) map[string]string {
 	t.Helper()
-	data := profiletest.Zip(t, "vpnclient", "password")
-	files := map[string]string{"vpnclient.zip": string(data)}
-	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, f := range r.File {
-		rc, err := f.Open()
-		if err != nil {
-			t.Fatal(err)
-		}
-		member, err := io.ReadAll(rc)
-		if err == nil {
-			err = rc.Close()
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
-		files[f.Name] = string(member)
-	}
-	return files
+	files := profiletest.Files(t, "vpnclient", "password")
+	return map[string]string{files.P12.Name: string(files.P12.Data),
+		files.SSwan.Name: string(files.SSwan.Data)}
 }
 
 // profileSteps are a session of tools/profilecheck in one repository, each step on what those
@@ -52,22 +31,22 @@ var profileSteps = []struct {
 	{name: "a commit", git: []string{"commit", "-q", "-m", "chore: a"}},
 	{
 		name: "the profile added in spite of .gitignore", status: 1,
-		git:    []string{"add", "-f", "vpnclient.zip", "vpnclient.p12", "vpnclient.sswan"},
-		stdout: "vpnclient.p12\nvpnclient.sswan\nvpnclient.zip\n",
+		git:    []string{"add", "-f", "vpnclient.p12", "vpnclient.sswan"},
+		stdout: "vpnclient.p12\nvpnclient.sswan\n",
 	},
 	{
 		name: "the profile committed", git: []string{"commit", "-q", "-m", "chore: b"}, status: 1,
-		stdout: "vpnclient.p12\nvpnclient.sswan\nvpnclient.zip\n",
+		stdout: "vpnclient.p12\nvpnclient.sswan\n",
 	},
 	{
 		name: "the profile taken out of the index", status: 1,
-		git:    []string{"rm", "-q", "--cached", "vpnclient.zip", "vpnclient.p12", "vpnclient.sswan"},
-		stdout: "vpnclient.p12\nvpnclient.sswan\nvpnclient.zip\n",
+		git:    []string{"rm", "-q", "--cached", "vpnclient.p12", "vpnclient.sswan"},
+		stdout: "vpnclient.p12\nvpnclient.sswan\n",
 	},
 	{
 		name: "the profile gone from HEAD, in its history still", status: 1,
 		git:    []string{"commit", "-q", "-m", "chore: c"},
-		stdout: "vpnclient.p12\nvpnclient.sswan\nvpnclient.zip\n",
+		stdout: "vpnclient.p12\nvpnclient.sswan\n",
 	},
 }
 
@@ -102,9 +81,11 @@ func TestProfilecheckCase(t *testing.T) {
 	env := environ(t)
 	dir := repository(t, env)
 	write(t, dir, map[string]string{"docs/VPNClient.MobileConfig": "<plist/>\n", "a.PFX": "x",
-		"server.Key": "x", "ca.pem": "x", "certs/server.CRT": "x", "logs.tar.gz": "x", "a.go": "x"})
+		"server.Key": "x", "ca.pem": "x", "certs/server.CRT": "x", "logs.tar.gz": "x",
+		"backup.ZIP": "x", "a.go": "x"})
 	r := script(t, dir, env, "profilecheck")
-	want := "a.PFX\nca.pem\ncerts/server.CRT\ndocs/VPNClient.MobileConfig\nlogs.tar.gz\nserver.Key\n"
+	want := "a.PFX\nbackup.ZIP\nca.pem\ncerts/server.CRT\ndocs/VPNClient.MobileConfig\n" +
+		"logs.tar.gz\nserver.Key\n"
 	if r.status != 1 || r.stdout != want {
 		t.Errorf("tools/profilecheck = %d, stdout %q; want 1 and %q", r.status, r.stdout, want)
 	}

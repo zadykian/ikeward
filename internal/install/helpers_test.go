@@ -16,7 +16,7 @@ import (
 // newProfile is a profile issued for name, as Parse reads it.
 func newProfile(t *testing.T, name string) *profile.Profile {
 	t.Helper()
-	p, err := profile.Parse(name+".zip", profiletest.Zip(t, name, ""), nil)
+	p, err := profile.Parse(profiletest.Files(t, name, ""), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

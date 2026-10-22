@@ -1,19 +1,16 @@
-// Package profile reads the client profile: a zip that holds NAME.p12, NAME.sswan,
-// NAME.mobileconfig and scripts for other systems, which ikeward ignores.
+// Package profile reads the client profile: NAME.p12, NAME.sswan and NAME.mobileconfig, the files
+// that ikev2setup.sh writes, the last optional.
 //
 // The .sswan gives the server and the proposals. The .p12 gives the client's key and certificate.
 // The CA that issued the certificate comes from the .p12 where it holds it, else from the .sswan's
 // remote.cert, else from the .mobileconfig's root payload. A .p12 with a password asks for it. The
-// package reads no file itself: the caller hands it the zip's bytes.
+// package reads no file itself: the caller hands it each file's name and bytes.
 package profile
 
 import (
-	"archive/zip"
-	"bytes"
 	"crypto"
 	"crypto/x509"
 	"fmt"
-	"io"
 	"path"
 	"regexp"
 	"strings"
@@ -43,41 +40,45 @@ type Profile struct {
 // Password gives the .p12's password. Parse calls it at most once, when the .p12 has a password.
 type Password func() (string, error)
 
-// maxSize caps each file read from the zip: an issued file is a few kilobytes.
-const maxSize = 1 << 20
+// MaxSize caps each of the profile's files: an issued file is a few kilobytes.
+const MaxSize = 1 << 20
 
 // safeName is a name install can build file names on, such as NAME-cert.pem.
 var safeName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
-// member is a file of the zip, named by its base name.
-type member struct {
-	name string
-	data []byte
+// File is one of the profile's files: its base name, which errors and the summary give, and its
+// bytes.
+type File struct {
+	Name string
+	Data []byte
 }
 
-// stem is m's name without its extension.
-func (m member) stem() string {
-	return strings.TrimSuffix(m.name, path.Ext(m.name))
+// stem is f's name without its extension.
+func (f File) stem() string {
+	return strings.TrimSuffix(f.Name, path.Ext(f.Name))
 }
 
-// Parse reads the client profile from data, the zip, which errors call name. password may be nil
-// where the .p12 has no password.
-func Parse(name string, data []byte, password Password) (*Profile, error) {
-	files, err := unzip(name, data)
-	if err != nil {
+// Files are the profile's files. Mobileconfig is optional, with no name where none was given, and
+// Parse reads it only where neither of the others holds the CA.
+type Files struct {
+	P12, SSwan, Mobileconfig File
+}
+
+// Parse reads the client profile from files. password may be nil where the .p12 has no password.
+func Parse(files Files, password Password) (*Profile, error) {
+	if err := files.check(); err != nil {
 		return nil, err
 	}
-	p12 := files[".p12"]
-	p := &Profile{Name: p12.stem()}
+	p := &Profile{Name: files.P12.stem()}
 	if !safeName.MatchString(p.Name) {
-		return nil, fmt.Errorf("%s: %s: %q is not a name ikeward builds file names on",
-			name, p12.name, p.Name)
+		return nil, fmt.Errorf("%s: %q is not a name ikeward builds file names on",
+			files.P12.Name, p.Name)
 	}
-	remote, err := p.readSSwan(files[".sswan"])
+	remote, err := p.readSSwan(files.SSwan)
 	if err != nil {
 		return nil, err
 	}
-	chain, err := p.readP12(p12, password)
+	chain, err := p.readP12(files.P12, password)
 	if err != nil {
 		return nil, err
 	}
@@ -107,59 +108,20 @@ func (p *Profile) Summary() []string {
 	return lines
 }
 
-// unzip reads the zip's .p12, .sswan and .mobileconfig, the last optional, and skips the rest. It
-// takes an extension in any case, as Windows may write it, and keys files by it in lower case.
-func unzip(name string, data []byte) (map[string]member, error) {
-	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", name, err)
-	}
-	files := map[string]member{}
-	for _, f := range r.File {
-		base := path.Base(f.Name)
-		ext := strings.ToLower(path.Ext(base))
-		// A zip made on macOS adds an AppleDouble file ._NAME beside each file.
-		if f.FileInfo().IsDir() || strings.HasPrefix(base, "._") ||
-			(ext != ".p12" && ext != ".sswan" && ext != ".mobileconfig") {
-			continue
-		}
-		if other, ok := files[ext]; ok {
-			return nil, fmt.Errorf("%s: holds two %s files, %s and %s", name, ext, other.name, base)
-		}
-		content, err := extract(f)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %s: %w", name, f.Name, err)
-		}
-		files[ext] = member{base, content}
-	}
-	for _, ext := range []string{".p12", ".sswan"} {
-		if _, ok := files[ext]; !ok {
-			return nil, fmt.Errorf("%s: holds no %s file", name, ext)
+// check refuses a file over MaxSize bytes, and files that are not named alike, as two profiles'
+// would be.
+func (f Files) check() error {
+	for _, file := range []File{f.P12, f.SSwan, f.Mobileconfig} {
+		if len(file.Data) > MaxSize {
+			return fmt.Errorf("%s: over %d bytes, more than an issued file holds", file.Name,
+				MaxSize)
 		}
 	}
-	// The files of two profiles must not mix.
-	p12 := files[".p12"]
-	for _, ext := range []string{".sswan", ".mobileconfig"} {
-		if f, ok := files[ext]; ok && f.stem() != p12.stem() {
-			return nil, fmt.Errorf("%s: %s and %s are not named alike, as one profile's files are",
-				name, p12.name, f.name)
+	for _, other := range []File{f.SSwan, f.Mobileconfig} {
+		if other.Name != "" && other.stem() != f.P12.stem() {
+			return fmt.Errorf("%s and %s are not named alike, as one profile's files are",
+				f.P12.Name, other.Name)
 		}
 	}
-	return files, nil
-}
-
-// extract reads f, failing where it holds over maxSize bytes.
-func extract(f *zip.File) ([]byte, error) {
-	r, err := f.Open()
-	if err != nil {
-		return nil, err
-	}
-	data, err := io.ReadAll(io.LimitReader(r, maxSize+1))
-	if closeErr := r.Close(); err == nil {
-		err = closeErr
-	}
-	if err == nil && len(data) > maxSize {
-		err = fmt.Errorf("over %d bytes, more than an issued file holds", maxSize)
-	}
-	return data, err
+	return nil
 }

@@ -13,11 +13,11 @@ import (
 	"software.sslmate.com/src/go-pkcs12"
 )
 
-// issued is the files of a client profile, which a test changes before zip makes the profile.
+// issued is the files of a client profile, which a test changes before Parse reads them.
 type issued struct {
 	t                        *testing.T
 	pki                      testPKI
-	p12, sswan, mobileconfig []byte // The zip holds no .mobileconfig where mobileconfig is nil.
+	p12, sswan, mobileconfig File // mobileconfig has no name where none is given.
 }
 
 // newIssued makes a profile as ikev2setup.sh issues one. Its .p12 has no password, is in OpenSSL's
@@ -25,18 +25,20 @@ type issued struct {
 func newIssued(t *testing.T, pki testPKI) *issued {
 	t.Helper()
 	p12 := encodeP12(t, pkcs12.LegacyDES, pki.key, pki.cert, []*x509.Certificate{pki.ca}, "")
-	return &issued{t, pki, p12, newSSwan(t, p12, nil), newMobileconfig(pki.ca.Raw)}
+	return &issued{t, pki, File{"client.p12", p12}, File{"client.sswan", newSSwan(t, p12, nil)},
+		File{"client.mobileconfig", newMobileconfig(pki.ca.Raw)}}
 }
 
 // setP12 replaces the .p12 with one of the client's key and cert, chain and password.
 func (i *issued) setP12(encoder *pkcs12.Encoder, cert *x509.Certificate,
 	chain []*x509.Certificate, password string) {
-	i.p12 = encodeP12(i.t, encoder, i.pki.key, cert, chain, password)
+	i.p12.Data = encodeP12(i.t, encoder, i.pki.key, cert, chain, password)
 }
 
 // setRemote sets the .sswan's remote.cert to cert.
 func (i *issued) setRemote(cert *x509.Certificate) {
-	i.sswan = newSSwan(i.t, i.p12, remote("cert", base64.StdEncoding.EncodeToString(cert.Raw)))
+	i.sswan.Data = newSSwan(i.t, i.p12.Data,
+		remote("cert", base64.StdEncoding.EncodeToString(cert.Raw)))
 }
 
 // caLike makes a CA with the name of i's, and key, from a template change edits if not nil.
@@ -54,16 +56,9 @@ func caLike(i *issued, key crypto.Signer, change func(*x509.Certificate)) *x509.
 	return sign(i.t, ca, key.Public(), ca, key)
 }
 
-// zip makes the profile, scripts for other systems among its files.
-func (i *issued) zip() []byte {
-	files := []file{
-		{"client.p12", i.p12}, {"client.sswan", i.sswan},
-		{"mac-os.sh", []byte("#!/bin/sh\n")}, {"windows.cmd", []byte("@echo off\r\n")},
-	}
-	if i.mobileconfig != nil {
-		files = append(files, file{"client.mobileconfig", i.mobileconfig})
-	}
-	return zipOf(i.t, files...)
+// files are the profile's files, as Parse takes them.
+func (i *issued) files() Files {
+	return Files{P12: i.p12, SSwan: i.sswan, Mobileconfig: i.mobileconfig}
 }
 
 // noPassword fails the test where Parse asks for a password.
@@ -83,7 +78,11 @@ var parseTests = []struct {
 	caFile   string
 }{
 	{"as ikev2setup.sh issues it", func(*issued) {}, "", "client.p12"},
-	{"without a .mobileconfig", func(i *issued) { i.mobileconfig = nil }, "", "client.p12"},
+	{"without a .mobileconfig", func(i *issued) { i.mobileconfig = File{} }, "", "client.p12"},
+	{"with its extensions in capitals", func(i *issued) {
+		i.p12.Name, i.sswan.Name, i.mobileconfig.Name = "client.P12", "client.SSWAN",
+			"client.MobileConfig"
+	}, "", "client.P12"},
 	{"with RSA keys", func(i *issued) { *i = *newIssued(i.t, newPKI(i.t, rsaKey)) }, "", "client.p12"},
 	{"with a password", func(i *issued) {
 		i.setP12(pkcs12.Modern2023, i.pki.cert, []*x509.Certificate{i.pki.ca}, "pass word")
@@ -102,7 +101,7 @@ var parseTests = []struct {
 	}, "", "client.mobileconfig"},
 	{"with the CA in the .mobileconfig only, as PEM", func(i *issued) {
 		i.setP12(pkcs12.LegacyDES, i.pki.cert, nil, "")
-		i.mobileconfig = newMobileconfig(
+		i.mobileconfig.Data = newMobileconfig(
 			pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: i.pki.ca.Raw}))
 	}, "", "client.mobileconfig"},
 	{"with a certificate signed with SHA-1", func(i *issued) {
@@ -117,7 +116,7 @@ var parseTests = []struct {
 	{"with the CA in the .sswan's remote.cert only", func(i *issued) {
 		i.setP12(pkcs12.LegacyDES, i.pki.cert, nil, "")
 		i.setRemote(i.pki.ca)
-		i.mobileconfig = nil
+		i.mobileconfig = File{}
 	}, "", "client.sswan"},
 	{"with the CA in the .p12 and in remote.cert", func(i *issued) { i.setRemote(i.pki.ca) },
 		"", "client.p12"},
@@ -128,7 +127,7 @@ var parseTests = []struct {
 	{"with another CA in the .p12, and the CA after it in the .mobileconfig", func(i *issued) {
 		other := newCA(i.t, "Other CA", ecKey(i.t))
 		i.setP12(pkcs12.Modern2023, i.pki.cert, []*x509.Certificate{other}, "pass word")
-		i.mobileconfig = newMobileconfig(other.Raw, i.pki.ca.Raw)
+		i.mobileconfig.Data = newMobileconfig(other.Raw, i.pki.ca.Raw)
 	}, "pass word", "client.mobileconfig"},
 }
 
@@ -144,7 +143,7 @@ func TestParse(t *testing.T) {
 					return test.password, nil
 				}
 			}
-			p, err := Parse("profile.zip", i.zip(), password)
+			p, err := Parse(i.files(), password)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -176,7 +175,7 @@ func checkProfile(t *testing.T, p *Profile, pki testPKI, caFile string) {
 
 func TestSummary(t *testing.T) {
 	i := newIssued(t, newPKI(t, ecKey))
-	p, err := Parse("profile.zip", i.zip(), nil)
+	p, err := Parse(i.files(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,37 +197,4 @@ func TestSummary(t *testing.T) {
 	if got := p.Summary(); !slices.Equal(got, want) {
 		t.Errorf("Summary:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-}
-
-// TestZip checks which of the zip's files Parse reads: by their extension, in any directory.
-func TestZip(t *testing.T) {
-	i := newIssued(t, newPKI(t, ecKey))
-	data := zipOf(t,
-		file{"client/", nil},
-		file{"client/client.p12", i.p12},
-		file{"client/client.sswan", i.sswan},
-		file{"client/client.mobileconfig", i.mobileconfig},
-		file{"__MACOSX/client/._client.p12", []byte("AppleDouble")},
-		file{"client/README.txt", []byte("not read")},
-	)
-	p, err := Parse("profile.zip", data, noPassword(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	checkProfile(t, p, i.pki, "client.p12")
-}
-
-// TestZipExtensionCase checks that Parse takes the files' extensions in any case.
-func TestZipExtensionCase(t *testing.T) {
-	i := newIssued(t, newPKI(t, ecKey))
-	data := zipOf(t,
-		file{"client.P12", i.p12},
-		file{"client.SSWAN", i.sswan},
-		file{"client.MobileConfig", i.mobileconfig},
-	)
-	p, err := Parse("profile.zip", data, noPassword(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	checkProfile(t, p, i.pki, "client.P12")
 }

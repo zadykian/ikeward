@@ -11,11 +11,11 @@ import (
 	"github.com/zadykian/ikeward/internal/profile/profiletest"
 )
 
-// TestCAZip reads a profile from a CA, as install does: the client's certificate is the CA's,
+// TestCAFiles reads a profile from a CA, as install does: the client's certificate is the CA's,
 // and the server is Server.
-func TestCAZip(t *testing.T) {
+func TestCAFiles(t *testing.T) {
 	ca := profiletest.NewCA(t)
-	p, err := profile.Parse("client.zip", ca.Zip(t, "client", "secret"),
+	p, err := profile.Parse(ca.Files(t, "client", "secret"),
 		func() (string, error) { return "secret", nil })
 	if err != nil {
 		t.Fatal(err)

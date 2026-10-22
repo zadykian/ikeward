@@ -17,7 +17,7 @@ by [split tunneling][st]. The integration test runs a strongSwan server in its p
   running, as on Ubuntu Server. Debian needs the `systemd-resolved` package and networkd enabled.
   The integration test runs Ubuntu 26.04.
 - Root, and `curl` and `sha256sum` for the installer.
-- The profile's files in one zip, as [the profile](docs/profile.md) says.
+- The profile's `.p12` and `.sswan`, as [the profile](docs/profile.md) says.
 - A resolver inside the remote network's ranges, and the domains it answers for.
 
 ## Install
@@ -63,8 +63,8 @@ Run again, it updates ikeward; then run `ikeward install` again, for what the ne
 As root, give `install` the profile and the remote network's values:
 
 ```sh
-ikeward install --profile vpnclient.zip --dns 10.88.0.53 --domain example.internal \
-    --floor 10.88.0.0/16
+ikeward install --p12 vpnclient.p12 --sswan vpnclient.sswan --dns 10.88.0.53 \
+    --domain example.internal --floor 10.88.0.0/16
 ```
 
 `--dns` is the remote network's resolver, which each `--domain`'s names go to alone, through the
@@ -117,8 +117,8 @@ leaves by `ikeward0` the address the VPN server assigned, whatever its source.
 ## Security
 
 `install.sh` checks the binary against a checksum from the same release, which catches a broken
-download, not a forged release. The profile's zip holds the client's key, so keep it where only
-root may read it, as `install` keeps the key. ikeward prints and logs no key and no password.
+download, not a forged release. The profile's files hold the client's key, so keep them where only
+root may read them, as `install` keeps the key. ikeward prints and logs no key and no password.
 Report a vulnerability privately, as [SECURITY.md](SECURITY.md) says, never in an issue.
 
 ## Stop and uninstall
@@ -140,7 +140,7 @@ takes the default route. ikeward itself stays, until `rm /usr/local/sbin/ikeward
   tunnel is down, the server's networks inside it, strongSwan's retries and the watchdog's repairs.
 - [The routing and the NAT rule](docs/nat.md): the order, `updown`'s routes and the ranges it
   learns, the floors, the NAT rule, forwarded networks and the firewall, and setting them again.
-- [The profile](docs/profile.md): the zip's files, what ikeward reads of them, and what it refuses.
+- [The profile](docs/profile.md): its files, what ikeward reads of them, and what it refuses.
 - [Building and testing](docs/development.md): the commands, the installer's and integration tests.
 - [The checks](docs/checks.md): what `make lint` checks, and how a finding is settled.
 - [Maintaining](docs/maintaining.md): landing pull requests, releases, and a fork's pull request.

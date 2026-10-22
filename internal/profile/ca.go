@@ -9,39 +9,37 @@ import (
 
 // findCA sets p's CA to the certificate that issued p's, taken from the first file that holds it.
 // The files, in order, are the .p12, whose other certificates are chain, the .sswan's remote.cert,
-// remote where set, and the .mobileconfig's root payloads.
-func (p *Profile) findCA(chain []*x509.Certificate, remote *x509.Certificate,
-	files map[string]member) error {
-	p12, sswan := files[".p12"], files[".sswan"]
+// remote where set, and the .mobileconfig's root payloads, where one was given.
+func (p *Profile) findCA(chain []*x509.Certificate, remote *x509.Certificate, files Files) error {
+	p12, sswan, mobileconfig := files.P12, files.SSwan, files.Mobileconfig
 	// strongSwan's app checks the server by remote.cert; ikeward takes one CA for both ends.
 	if remote != nil {
 		ca, miss := issuer(p.Certificate, []*x509.Certificate{remote})
 		if miss != nil {
-			return fmt.Errorf("%s: remote.cert: %w", sswan.name, miss)
+			return fmt.Errorf("%s: remote.cert: %w", sswan.Name, miss)
 		}
 		if ca == nil {
 			return fmt.Errorf("%s: remote.cert holds the CA %s, not %s, which issued %s's "+
-				"certificate, and ikeward takes one CA for both", sswan.name, remote.Subject,
-				p.Certificate.Issuer, p12.name)
+				"certificate, and ikeward takes one CA for both", sswan.Name, remote.Subject,
+				p.Certificate.Issuer, p12.Name)
 		}
 	}
 	ca, miss := issuer(p.Certificate, chain)
 	switch {
 	case ca != nil:
-		p.CA, p.CAFile = ca, p12.name
+		p.CA, p.CAFile = ca, p12.Name
 		return nil
 	case remote != nil:
-		p.CA, p.CAFile = remote, sswan.name
+		p.CA, p.CAFile = remote, sswan.Name
 		return nil
 	}
 	// A .p12 may hold an older CA of the same name, so a miss there still looks further.
 	if miss != nil {
-		miss = fmt.Errorf("%s: %w", p12.name, miss)
+		miss = fmt.Errorf("%s: %w", p12.Name, miss)
 	}
-	mobileconfig, ok := files[".mobileconfig"]
-	if !ok {
+	if mobileconfig.Name == "" {
 		return firstError(miss, fmt.Errorf("%s: the CA that issued its certificate, %s, "+
-			"is not in it, and the profile holds no .mobileconfig", p12.name, p.Certificate.Issuer))
+			"is not in it, and no .mobileconfig was given", p12.Name, p.Certificate.Issuer))
 	}
 	roots, err := rootPayloads(mobileconfig)
 	if err != nil {
@@ -50,13 +48,13 @@ func (p *Profile) findCA(chain []*x509.Certificate, remote *x509.Certificate,
 	ca, rootMiss := issuer(p.Certificate, roots)
 	if ca == nil {
 		if rootMiss != nil {
-			rootMiss = fmt.Errorf("%s: %w", mobileconfig.name, rootMiss)
+			rootMiss = fmt.Errorf("%s: %w", mobileconfig.Name, rootMiss)
 		}
 		return firstError(miss, rootMiss, fmt.Errorf("%s: no root payload holds the CA "+
-			"that issued %s's certificate, %s, which %s lacks too", mobileconfig.name, p12.name,
-			p.Certificate.Issuer, p12.name))
+			"that issued %s's certificate, %s, which %s lacks too", mobileconfig.Name, p12.Name,
+			p.Certificate.Issuer, p12.Name))
 	}
-	p.CA, p.CAFile = ca, mobileconfig.name
+	p.CA, p.CAFile = ca, mobileconfig.Name
 	return nil
 }
 

@@ -16,7 +16,7 @@ import (
 // The credentials are the profile's, in PEM, under the names the connection gives them, the key
 // for root alone.
 func TestCredentials(t *testing.T) {
-	p, err := profile.Parse("a_client.2.zip", profiletest.Zip(t, "a_client.2", ""), nil)
+	p, err := profile.Parse(profiletest.Files(t, "a_client.2", ""), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ type opaqueKey struct{ ed25519.PrivateKey }
 func (opaqueKey) Sign(io.Reader, []byte, crypto.SignerOpts) ([]byte, error) { return nil, nil }
 
 func TestCredentialsErrors(t *testing.T) {
-	p, err := profile.Parse("client.zip", profiletest.Zip(t, "client", ""), nil)
+	p, err := profile.Parse(profiletest.Files(t, "client", ""), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

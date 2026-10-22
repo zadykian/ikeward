@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -18,8 +19,8 @@ import (
 )
 
 // installLong is a variable, as it shows routing.MinBits.
-var installLong = `Install the VPN from the client profile, the zip FILE, with the remote
-network's values, as root:
+var installLong = `Install the VPN from the client profile's files, with the remote network's
+values, as root:
 
   - install strongSwan's packages with apt-get, where they are missing, and
     where that fails, update the package lists and try once more;
@@ -38,6 +39,15 @@ network's values, as root:
     reads them only as it starts. Where install stops half way, a rerun
     restarts the daemon all the same: ` + install.Pending + `
     names it from before its settings change until install ends.
+
+The profile's files are those ikev2setup.sh writes, named alike, each given
+by its path:
+
+  - --p12 FILE: NAME.p12, the client's key and certificate. NAME names the
+    files install writes;
+  - --sswan FILE: NAME.sswan, which names the VPN server and the proposals;
+  - --mobileconfig FILE: NAME.mobileconfig, read only where neither the .p12
+    nor the .sswan holds the CA. Leave it out otherwise.
 
 The remote network's values come from the flags, and routing, status and the
 watchdog read them from ` + files.SettingsFile + `:
@@ -81,19 +91,19 @@ const changesSettings = "changes the system's settings"
 
 // newInstall is ikeward install.
 func newInstall(sys system) *cobra.Command {
-	var path string
+	var named profileFlags
 	var given flags
 	var dryRun bool
 	command := &cobra.Command{
-		Use: "install --profile FILE --dns ADDR --domain NAME... [--probe NAME]\n" +
-			"      [--floor CIDR]... [--dry-run]",
+		Use: "install --p12 FILE --sswan FILE [--mobileconfig FILE] --dns ADDR\n" +
+			"      --domain NAME... [--probe NAME] [--floor CIDR]... [--dry-run]",
 		Short:                 "Install the VPN from the client profile",
 		Long:                  installLong,
 		Args:                  noArgs,
 		DisableFlagsInUseLine: true,
 		RunE: func(command *cobra.Command, _ []string) error {
-			if path == "" {
-				return usageError{errors.New("install needs --profile FILE"), command}
+			if named.p12 == "" || named.sswan == "" {
+				return usageError{errors.New("install needs --p12 FILE and --sswan FILE"), command}
 			}
 			settings, err := given.settings()
 			if err != nil {
@@ -105,11 +115,11 @@ func newInstall(sys system) *cobra.Command {
 			if err := sys.asBinary(command.OutOrStdout(), dryRun); err != nil {
 				return err
 			}
-			data, err := os.ReadFile(path)
+			read, err := named.read()
 			if err != nil {
-				return fmt.Errorf("cannot read the profile: %w", err)
+				return err
 			}
-			p, err := profile.Parse(filepath.Base(path), data, sys.password)
+			p, err := profile.Parse(read, sys.password)
 			if err != nil {
 				return err
 			}
@@ -119,7 +129,10 @@ func newInstall(sys system) *cobra.Command {
 			return sys.installer(command, dryRun).Install(p, settings)
 		},
 	}
-	command.Flags().StringVar(&path, "profile", "", "the client profile, the zip `FILE`")
+	command.Flags().StringVar(&named.p12, "p12", "", "the client profile's .p12 `FILE`")
+	command.Flags().StringVar(&named.sswan, "sswan", "", "the client profile's .sswan `FILE`")
+	command.Flags().StringVar(&named.mobileconfig, "mobileconfig", "",
+		"the client profile's .mobileconfig `FILE`, for its CA")
 	command.Flags().StringVar(&given.dns, "dns", "", "the remote network's resolver, an IPv4 `ADDR`")
 	command.Flags().StringArrayVar(&given.domains, "domain", nil,
 		"a domain `NAME` of the remote network's, once for each")
@@ -129,6 +142,47 @@ func newInstall(sys system) *cobra.Command {
 		"a `CIDR` kept off the uplink from boot on, once for each")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "print the changes, and change nothing")
 	return command
+}
+
+// profileFlags are install's flags that name the profile's files.
+type profileFlags struct {
+	p12, sswan, mobileconfig string
+}
+
+// read reads the files f names, each up to a byte past profile.MaxSize, which Parse refuses.
+func (f profileFlags) read() (profile.Files, error) {
+	var read profile.Files
+	for _, file := range []struct {
+		flag, path string
+		to         *profile.File
+	}{
+		{"--p12", f.p12, &read.P12}, {"--sswan", f.sswan, &read.SSwan},
+		{"--mobileconfig", f.mobileconfig, &read.Mobileconfig},
+	} {
+		if file.path == "" {
+			continue
+		}
+		data, err := readCapped(file.path)
+		if err != nil {
+			return profile.Files{}, fmt.Errorf("cannot read %s: %w", file.flag, err)
+		}
+		*file.to = profile.File{Name: filepath.Base(file.path), Data: data}
+	}
+	return read, nil
+}
+
+// readCapped reads the file at path up to a byte past profile.MaxSize, so that a stray path, such
+// as a device's, reads no more.
+func readCapped(path string) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	data, err := io.ReadAll(io.LimitReader(f, profile.MaxSize+1))
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	return data, err
 }
 
 // flags are install's flags that give the remote network's values.

@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	// clientProfile is where the client has the profile, which compose.yaml mounts there.
-	clientProfile = "/root/client.zip"
+	// clientP12 and clientSSwan are where the client has the profile's files, which compose.yaml
+	// mounts there.
+	clientP12, clientSSwan = "/root/client.p12", "/root/client.sswan"
 	// password is the .p12's, which install reads from standard input, as a script that installs
 	// ikeward gives it.
 	password = "integration"
@@ -31,9 +32,9 @@ const (
 // installWith runs ikeward install as install does, with the remote network's values, and args too.
 func (s *stack) installWith(t *testing.T, args ...string) {
 	t.Helper()
-	out, err := s.run(t, password+"\n", append([]string{files.Binary, "install", "--profile",
-		clientProfile, "--dns", resolver, "--domain", domain, "--floor", given, "--floor",
-		aroundRemote}, args...)...)
+	out, err := s.run(t, password+"\n", append([]string{files.Binary, "install", "--p12",
+		clientP12, "--sswan", clientSSwan, "--dns", resolver, "--domain", domain, "--floor", given,
+		"--floor", aroundRemote}, args...)...)
 	t.Log(out)
 	if err != nil {
 		t.Fatal(err)

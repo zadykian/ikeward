@@ -3,8 +3,6 @@
 package profiletest
 
 import (
-	"archive/zip"
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -18,6 +16,8 @@ import (
 	"time"
 
 	"software.sslmate.com/src/go-pkcs12"
+
+	"github.com/zadykian/ikeward/internal/profile"
 )
 
 // Server is the VPN server that the profiles name, in the .sswan's remote.addr.
@@ -62,16 +62,17 @@ func NewCA(t *testing.T) *CA {
 	return &CA{Cert: cert, key: key}
 }
 
-// Zip returns a client profile as ikev2setup.sh makes it, from a CA of its own: see CA.Zip.
-func Zip(t *testing.T, name, password string) []byte {
+// Files returns a client profile's files as ikev2setup.sh makes them, from a CA of their own: see
+// CA.Files.
+func Files(t *testing.T, name, password string) profile.Files {
 	t.Helper()
-	return NewCA(t).Zip(t, name, password)
+	return NewCA(t).Files(t, name, password)
 }
 
-// Zip returns a client profile as ikev2setup.sh makes it, in a zip. NAME.p12 holds the client's
+// Files returns a client profile's files as ikev2setup.sh makes them. NAME.p12 holds the client's
 // key, a certificate that ca issued for it, and ca's own; NAME.sswan is for Server. The .p12 has
 // password, or none where password is empty.
-func (ca *CA) Zip(t *testing.T, name, password string) []byte {
+func (ca *CA) Files(t *testing.T, name, password string) profile.Files {
 	t.Helper()
 	key := newKey(t)
 	cert := sign(t, &x509.Certificate{
@@ -84,25 +85,10 @@ func (ca *CA) Zip(t *testing.T, name, password string) []byte {
 		t.Fatal(err)
 	}
 	sswan := fmt.Appendf(nil, sswanText, Server, base64.StdEncoding.EncodeToString(p12))
-
-	var out bytes.Buffer
-	w := zip.NewWriter(&out)
-	for _, f := range []struct {
-		name string
-		data []byte
-	}{{name + ".p12", p12}, {name + ".sswan", sswan}} {
-		entry, err := w.Create(f.name)
-		if err == nil {
-			_, err = entry.Write(f.data)
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
+	return profile.Files{
+		P12:   profile.File{Name: name + ".p12", Data: p12},
+		SSwan: profile.File{Name: name + ".sswan", Data: sswan},
 	}
-	if err := w.Close(); err != nil {
-		t.Fatal(err)
-	}
-	return out.Bytes()
 }
 
 // Server returns, in PEM, a certificate that ca issued to the VPN server Server, and its key as

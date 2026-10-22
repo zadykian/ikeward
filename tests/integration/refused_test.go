@@ -60,8 +60,8 @@ func (s *stack) serversRangeRefused(t *testing.T) {
 	s.must(t, "sed", "-i", `\|^`+strings.ReplaceAll(serversRange, ".", `\.`)+`$|d`,
 		routing.Learned)
 
-	_, err := s.run(t, password+"\n", files.Binary, "install", "--profile", clientProfile,
-		"--dns", resolver, "--domain", domain, "--floor", serversRange, "--dry-run")
+	_, err := s.run(t, password+"\n", files.Binary, "install", "--p12", clientP12, "--sswan",
+		clientSSwan, "--dns", resolver, "--domain", domain, "--floor", serversRange, "--dry-run")
 	if want := "--floor " + serversRange + ": " + holdsServer; err == nil ||
 		!strings.Contains(err.Error(), "exit status 2") || !strings.Contains(err.Error(), want) {
 		t.Errorf("install takes --floor %s, or fails otherwise than with %q: %v", serversRange,

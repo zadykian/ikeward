@@ -1,9 +1,9 @@
 # gitleaks' rules, run by `make gitleaks`, and two of ikeward's own. A client profile's .sswan
 # holds the client's key and certificate, a .p12 in Base64, in its p12 field. ikev2setup.sh wraps
 # it at 52 characters, the lines joined by \n escapes, and the rule takes it so or on one line.
-# gitleaks reads no binary file, such as the profile's zip or .p12, so tools/profilecheck fails on
-# them. A PEM block of any kind is refused: a certificate names its owner, and a key is secret,
-# whatever gitleaks' own rules make of it.
+# gitleaks reads no binary file, such as the profile's .p12 or an archive, so tools/profilecheck
+# fails on them. A PEM block of any kind is refused: a certificate names its owner, and a key is
+# secret, whatever gitleaks' own rules make of it.
 [extend]
 useDefault = true
 

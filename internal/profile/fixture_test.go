@@ -1,8 +1,6 @@
 package profile
 
 import (
-	"archive/zip"
-	"bytes"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -237,29 +235,3 @@ const mobileconfigRoot = `
       <key>PayloadType</key>
       <string>com.apple.security.root</string>
     </dict>`
-
-// file is a file of a test's zip.
-type file struct {
-	name string
-	data []byte
-}
-
-// zipOf makes a zip of files, in their order; a name that ends with a slash is a directory.
-func zipOf(t *testing.T, files ...file) []byte {
-	t.Helper()
-	var out bytes.Buffer
-	w := zip.NewWriter(&out)
-	for _, f := range files {
-		entry, err := w.Create(f.name)
-		if err == nil {
-			_, err = entry.Write(f.data)
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := w.Close(); err != nil {
-		t.Fatal(err)
-	}
-	return out.Bytes()
-}

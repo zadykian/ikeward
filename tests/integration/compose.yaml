@@ -99,7 +99,8 @@ services:
       - vpn.example.org=198.51.100.10
     volumes:
       - ${IKEWARD_BINARY:?}:/usr/local/sbin/ikeward:ro
-      - ${IKEWARD_INTEGRATION_DIR:?}/client.zip:/root/client.zip:ro
+      - ${IKEWARD_INTEGRATION_DIR:?}/client.p12:/root/client.p12:ro
+      - ${IKEWARD_INTEGRATION_DIR:?}/client.sswan:/root/client.sswan:ro
       - /var/lib/containerd
       - /var/lib/docker
     # The uplink comes first, and the LAN second, though Docker may name either eth0.

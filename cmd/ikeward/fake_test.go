@@ -235,23 +235,6 @@ func installedRoot(t *testing.T) string {
 	return root
 }
 
-// installArgs are install's arguments with the profile at path, the remote network's values,
-// then more.
-func installArgs(path string, more ...string) []string {
-	return append([]string{"install", "--profile", path, "--dns", "192.0.2.10", "--domain",
-		"example.test", "--floor", "10.88.0.0/16"}, more...)
-}
-
-// writeProfile writes a profile issued for client, whose .p12 has password, and returns its path.
-func writeProfile(t *testing.T, password string) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "client.zip")
-	if err := os.WriteFile(path, profiletest.Zip(t, "client", password), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	return path
-}
-
 // installed are the files under root, each as the absolute path it stands for, sorted.
 func (f *fakeSystem) installed(t *testing.T) []string {
 	t.Helper()

@@ -193,17 +193,19 @@ func build(t *testing.T, dir string) string {
 }
 
 // writeCredentials writes into dir the files compose.yaml mounts: the test CA, a certificate from
-// it for the VPN server, the server's key, and the client's profile. The profile's certificate is
-// from the CA as well, and its .p12 has password.
+// it for the VPN server, the server's key, and the client profile's files. The profile's
+// certificate is from the CA as well, and its .p12 has password.
 func writeCredentials(t *testing.T, dir string) {
 	t.Helper()
 	ca := profiletest.NewCA(t)
 	cert, key := ca.Server(t)
+	client := ca.Files(t, "client", password)
 	for name, data := range map[string][]byte{
 		"ca.pem":          profiletest.PEM(ca.Cert),
 		"server-cert.pem": cert,
 		"server-key.pem":  key,
-		"client.zip":      ca.Zip(t, "client", password),
+		client.P12.Name:   client.P12.Data,
+		client.SSwan.Name: client.SSwan.Data,
 	} {
 		if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
 			t.Fatal(err)

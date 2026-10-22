@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -171,7 +172,6 @@ func TestDryRunCommand(t *testing.T) {
 
 func TestInstallCommandErrors(t *testing.T) {
 	secret := writeProfile(t, "secret")
-	missing := filepath.Join(t.TempDir(), "x.zip")
 	for _, test := range []struct {
 		name     string
 		args     []string
@@ -184,8 +184,6 @@ func TestInstallCommandErrors(t *testing.T) {
 		{"uninstall not root", []string{"uninstall", "--dry-run"},
 			func(f *fakeSystem) { f.uid = 1000 },
 			"uninstall changes the system's settings, and must run as root", false},
-		{"no profile", installArgs(missing), nil,
-			"cannot read the profile: open " + missing + ": no such file or directory", false},
 		{"wrong password", installArgs(secret),
 			func(f *fakeSystem) { f.stdin = strings.NewReader("wrong\n") },
 			"client.p12: the password is incorrect", false},
@@ -223,5 +221,42 @@ func TestInstallCommandErrors(t *testing.T) {
 				t.Errorf("read the terminal %d times", f.term.reads)
 			}
 		})
+	}
+}
+
+// install names the flag whose file it cannot read, reads no file past profile.MaxSize, and
+// refuses a .mobileconfig named apart from the .p12, writing nothing.
+func TestInstallProfileErrors(t *testing.T) {
+	dir, missing := writeProfile(t, ""), t.TempDir()
+	other := filepath.Join(t.TempDir(), "other.mobileconfig")
+	if err := os.WriteFile(other, []byte("<plist/>\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	noFile := func(flag, name string) string {
+		return "cannot read " + flag + ": open " + filepath.Join(missing, name) +
+			": no such file or directory"
+	}
+	for _, test := range []struct {
+		args []string
+		want string
+	}{
+		{installArgs(missing), noFile("--p12", "client.p12")},
+		{installArgs(dir, "--sswan", filepath.Join(missing, "client.sswan")),
+			noFile("--sswan", "client.sswan")},
+		{installArgs(dir, "--mobileconfig", filepath.Join(missing, "client.mobileconfig")),
+			noFile("--mobileconfig", "client.mobileconfig")},
+		{installArgs(dir, "--mobileconfig", other),
+			"client.p12 and other.mobileconfig are not named alike, as one profile's files are"},
+		{installArgs(dir, "--sswan", "/dev/zero"),
+			"zero: over 1048576 bytes, more than an issued file holds"},
+	} {
+		f := newFakeSystem(t, "")
+		err := run(test.args, f.system)
+		if err == nil || err.Error() != test.want || exitStatus(err) != 1 {
+			t.Errorf("%q: %v, want %s, and exit status 1", test.args, err, test.want)
+		}
+		if got := f.installed(t); len(got) > 0 {
+			t.Errorf("%q: wrote %q", test.args, got)
+		}
 	}
 }

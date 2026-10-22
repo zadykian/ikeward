@@ -15,9 +15,9 @@ import (
 // end is written without them, and the probe is the first domain where not given.
 func TestInstallFlags(t *testing.T) {
 	f := newFakeSystem(t, "")
-	args := []string{"install", "--profile", writeProfile(t, ""), "--dns", "10.1.2.3",
-		"--domain", "Example.Test.", "--domain", "example.org", "--floor", "10.0.0.0/8",
-		"--floor", "172.16.0.0/12"}
+	args := append(append([]string{"install"}, profileArgs(writeProfile(t, ""))...), "--dns",
+		"10.1.2.3", "--domain", "Example.Test.", "--domain", "example.org", "--floor", "10.0.0.0/8",
+		"--floor", "172.16.0.0/12")
 	if err := run(args, f.system); err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,8 @@ func TestInstallFlagMistakes(t *testing.T) {
 		{[]string{"--dns", "nowhere", "--domain", "x.example", "--floor", "0.0.0.0/0"},
 			"--dns \"nowhere\" is no address\n--floor 0.0.0.0/0: " + wide},
 	} {
-		args := append([]string{"install", "--profile", "missing.zip"}, test.args...)
+		args := append([]string{"install", "--p12", "missing.p12", "--sswan", "missing.sswan"},
+			test.args...)
 		err := run(args, system{euid: func() int { return 1000 }})
 		want := test.want + " (see ikeward install --help)"
 		if err == nil || err.Error() != want || exitStatus(err) != 2 {
@@ -107,8 +108,8 @@ func TestInstallServerUnresolved(t *testing.T) {
 
 	f = newFakeSystem(t, "secret\n")
 	f.names.down = true
-	err = run([]string{"install", "--profile", writeProfile(t, "secret"), "--dns", "10.1.2.3",
-		"--domain", "example.test"}, f.system)
+	err = run(append(append([]string{"install"}, profileArgs(writeProfile(t, "secret"))...),
+		"--dns", "10.1.2.3", "--domain", "example.test"), f.system)
 	if err != nil || len(f.names.asked) > 0 || !slices.Contains(f.installed(t), files.SettingsFile) {
 		t.Errorf("with no floor: %v, and resolved %q", err, f.names.asked)
 	}

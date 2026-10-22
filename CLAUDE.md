@@ -18,9 +18,9 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
   finds it: the profile's, or what the system's resolver gives for its name.
 - `internal/...`: the rest, a package per concern, each reaching the system through small
   interfaces.
-- `internal/profile`: reads the profile's zip, as `docs/profile.md` says: the `.sswan`, the `.p12`,
-  and the `.mobileconfig` for the CA where neither the `.p12` nor the `.sswan`'s `remote.cert` holds
-  it.
+- `internal/profile`: reads the profile's files, as `docs/profile.md` says: the `.sswan`, the
+  `.p12`, and the `.mobileconfig` for the CA where neither the `.p12` nor the `.sswan`'s
+  `remote.cert` holds it. `install` takes each by its own flag, and no archive.
 - `internal/files`: generates from the profile the files `install` writes. They are the swanctl
   connection, the strongSwan drop-in, networkd's `ikeward0`, the watchdog's units and
   `ikeward-routing.service`. `ikeward0` is the tunnel's XFRM interface, whose ID, `InterfaceID`, the
@@ -146,7 +146,7 @@ make build VERSION=X.Y.Z      # dist: ikeward-linux-{amd64,arm64}, ikeward.sha25
 make notices                  # dist/third-party-notices.txt, as each release publishes it
 make integration              # end to end in Docker Compose; needs the modules ci.yml loads
 # What ikeward reads of a real profile, no secret; .p12 password from IKEWARD_PROFILE_PASSWORD_FILE
-IKEWARD_PROFILE=ZIP go test -count=1 -v -run 'TestIssuedProfile$' ./internal/profile
+IKEWARD_PROFILE=PATH/NAME go test -count=1 -v -run 'TestIssuedProfile$' ./internal/profile
 ```
 
 A pull request is ready when `make check` and `make lint` pass and its tests cover what it adds.

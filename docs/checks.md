@@ -225,7 +225,7 @@ every job of CI and of a release builds with.
 
 ## A client profile
 
-gitleaks reads text alone, so it never reads a client profile's zip or its `.p12`. None of its
+gitleaks reads text alone, so it never reads a client profile's `.p12`, or an archive. None of its
 default rules reads the `p12` field of a `.sswan` either, which holds the client's key and
 certificate. So `.gitleaks.toml` adds a rule for that field, its Base64 on one line or wrapped as
 ikev2setup.sh writes it: at 52 characters, the lines joined by `\n` escapes. Its `pem-block` rule
