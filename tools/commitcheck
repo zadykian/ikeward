@@ -1,0 +1,86 @@
+#!/bin/sh
+# Checks the messages of the commits that HEAD holds and BASE does not, origin/main by default:
+#
+#   tools/commitcheck [BASE]
+#
+# A header is `type(scope)!: description`, of 72 columns at most, with no period at its end; the
+# scope and the ! are optional. The type is one of feat, fix, build, chore, ci, docs, perf,
+# refactor, revert, style and test, and a scope is of a-z, 0-9, _ and -. A blank line follows the
+# header, and each line of the body is 72 columns at most, but for a Co-authored-by or
+# Signed-off-by trailer and for a line that holds a URL. Merge commits are passed over: pull
+# requests land on main by fast-forward, and CI checks a pull request on GitHub's merge.
+
+set -eu
+
+# say prints a message of the script's.
+say() {
+    printf 'tools/commitcheck: %s\n' "$*" >&2
+}
+
+# die prints a message of the script's and exits with status 1.
+die() {
+    say "$*"
+    exit 1
+}
+
+# check prints the faults of the commit $1's message, a line each. With log.showSignature, git
+# show would print a signature's check above the message.
+check() {
+    git show -s --no-show-signature \
+        --format='%(trailers:key=Co-authored-by,key=Signed-off-by)' "$1" >"$tmp/trailers"
+    git show -s --no-show-signature --format=%B "$1" >"$tmp/message"
+    # LC_ALL=C makes every awk count bytes, and the bytes that continue a UTF-8 character go
+    # uncounted, so that a length is in characters.
+    LC_ALL=C awk -v commit="$(git rev-parse --short "$1")" '
+        function width(s) {
+            gsub(/[\200-\277]/, "", s)
+            return length(s)
+        }
+        function fault(msg) {
+            printf "%s:%d: %s\n", commit, FNR, msg
+        }
+        NR == FNR {
+            trailer[$0] = 1
+            next
+        }
+        FNR == 1 {
+            types = "(feat|fix|build|chore|ci|docs|perf|refactor|revert|style|test)"
+            if ($0 !~ "^" types "(\\([a-z0-9_-]+\\))?!?: [^ ]")
+                fault("the header is not type(scope)!: description, with a type of " \
+                    "feat, fix, build, chore, ci, docs, perf, refactor, revert, style or test")
+            if (width($0) > 72)
+                fault("the header is " width($0) " columns, over 72")
+            if ($0 ~ /\.$/)
+                fault("the header ends in a period")
+            next
+        }
+        FNR == 2 && $0 != "" {
+            fault("the line after the header is not blank")
+        }
+        width($0) > 72 && !($0 in trailer) && $0 !~ /:\/\// {
+            fault("the line is " width($0) " columns, over 72")
+        }
+    ' "$tmp/trailers" "$tmp/message"
+}
+
+main() {
+    [ $# -le 1 ] || die "usage: tools/commitcheck [BASE]"
+    base=${1:-origin/main}
+    git rev-parse -q --verify "$base^{commit}" >/dev/null ||
+        die "no commit $base: fetch it, as CI's checkout does with fetch-depth 0"
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    trap 'exit 1' HUP INT TERM
+
+    git rev-list --no-merges --reverse "$base..HEAD" >"$tmp/commits"
+    : >"$tmp/faults"
+    while IFS= read -r commit; do
+        check "$commit" >>"$tmp/faults"
+    done <"$tmp/commits"
+    [ -s "$tmp/faults" ] || return 0
+    cat "$tmp/faults"
+    say "the commits above break the message rules; reword them"
+    return 1
+}
+
+main "$@"

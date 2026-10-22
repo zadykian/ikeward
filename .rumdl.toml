@@ -1,0 +1,6 @@
+# rumdl on the Markdown files, run by `make rumdl`: its defaults, with lines of 100 columns at
+# most. Code blocks and tables may run longer.
+[MD013]
+line-length = 100
+code-blocks = false
+tables = false

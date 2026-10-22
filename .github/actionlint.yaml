@@ -1,0 +1,5 @@
+# The runner labels actionlint 1.7.12 does not know yet. ubuntu-26.04 is GitHub-hosted, the
+# Ubuntu release the integration test's client runs.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04

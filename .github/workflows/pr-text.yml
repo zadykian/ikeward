@@ -1,0 +1,41 @@
+name: pr-text
+
+# A pull request's title, body and branch, which no commit holds, go through tools/denycheck each
+# time they change. A fork's pull request gets no secrets, so denycheck passes it with a note, and
+# the maintainer checks it with the list before /ff (docs/checks.md).
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  pr-text:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          # denycheck needs the standard library alone.
+          cache: false
+      # The texts reach the script as variables, never as code. Each goes through, whatever the
+      # others' findings.
+      - name: Check the title, the body and the branch
+        env:
+          DENYLIST: ${{ secrets.DENYLIST }}
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          status=0
+          printf '%s\n' "$TITLE" | go run ./tools/denycheck -stdin title || status=1
+          printf '%s\n' "$BODY" | go run ./tools/denycheck -stdin body || status=1
+          printf '%s\n' "$BRANCH" | go run ./tools/denycheck -stdin branch || status=1
+          exit "$status"

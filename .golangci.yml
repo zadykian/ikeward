@@ -1,0 +1,40 @@
+# golangci-lint v2, run by `make check` on ./... with the version tools/run pins.
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - errorlint
+    - nilerr
+    - errchkjson
+    - nolintlint
+    - revive
+    - gocognit
+    - nestif
+    - modernize
+    - unparam
+    - usetesting
+    - thelper
+    - misspell
+    - dupword
+    - lll
+  settings:
+    errcheck:
+      check-blank: true
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    revive:
+      rules:
+        - name: function-length
+          # At most 40 statements and 60 lines in a function.
+          arguments: [40, 60]
+    gocognit:
+      min-complexity: 20
+    lll:
+      line-length: 100
+
+issues:
+  # Every finding is reported, not the first 50 of a linter or 3 of a kind.
+  max-issues-per-linter: 0
+  max-same-issues: 0

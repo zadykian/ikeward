@@ -1,0 +1,21 @@
+# Written by ikeward install, which rewrites it: change ikeward, not this file.
+[Match]
+Name=ikeward0
+
+[Network]
+# The remote network's resolver, through the tunnel, for its names alone:
+# they are no search domains, and no other lookup goes there.
+DNS=192.0.2.10
+Domains=~example.test
+DNSDefaultRoute=no
+# resolved sends lookups on a link only while it has a routable address.
+# With this one, they stay here while the tunnel is down, where the link
+# drops them, rather than go to the uplink's resolver in the clear.
+# IPv6, so that their IPv4 source stays the address from the server.
+Address=fd22:851f:35dd::1/128
+# strongSwan, not networkd, puts the address from the server on this link:
+# a reconfigure keeps it.
+KeepConfiguration=yes
+
+[Link]
+ActivationPolicy=always-up

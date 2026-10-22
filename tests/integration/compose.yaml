@@ -1,0 +1,142 @@
+# ikeward's integration test, which integration_test.go brings up and checks: make integration.
+# The client runs ikeward install with a profile from the test CA, and reaches the remote network,
+# behind the VPN server, through the tunnel. The server grants it two ranges. Its own LAN lies
+# inside 10.88.0.0/16, a floor that install is given.
+# Every network is internal and leaves the host without an address on it, so that the remote
+# network and the LAN reach neither the host's routes nor the Internet.
+name: ikeward-integration
+
+services:
+  # The VPN server, with the test CA, and a certificate for the name the profile gives. It routes
+  # the second range it grants, 198.18.0.0/24, to the far host.
+  server:
+    build:
+      context: .
+      target: server
+    cap_add: [NET_ADMIN]
+    command:
+      - sh
+      - -ec
+      - |
+        ip route add 198.18.0.0/24 via 192.0.2.10
+        ip route add 198.18.1.53/32 via 192.0.2.10
+        exec /usr/sbin/charon-systemd
+    sysctls:
+      net.ipv4.ip_forward: "1"
+    volumes:
+      - ${IKEWARD_INTEGRATION_DIR:?}/ca.pem:/etc/swanctl/x509ca/ca.pem:ro
+      - ${IKEWARD_INTEGRATION_DIR:?}/server-cert.pem:/etc/swanctl/x509/server-cert.pem:ro
+      - ${IKEWARD_INTEGRATION_DIR:?}/server-key.pem:/etc/swanctl/private/server-key.pem:ro
+    networks:
+      internet:
+        ipv4_address: 198.51.100.10
+      remote:
+        ipv4_address: 192.0.2.2
+    healthcheck:
+      test: ["CMD-SHELL", "swanctl --list-conns 2>/dev/null | grep -q '^remote:'"]
+      interval: 1s
+      retries: 60
+
+  # A host on the remote network, at its resolver's address, and at 198.18.0.10, in the second
+  # range. dnsmasq answers for the test's names under example.test, and for example.test, the name
+  # ikeward status asks. It answers at 198.18.1.53 too, which the server routes but grants none of.
+  # Port 8080 answers a connection with the address it came from. Replies to the clients'
+  # addresses go back through the VPN server. So do those to the client's uplink: the server
+  # stands in for the uplink's router too, so that what leaves the client in the clear gets an
+  # answer, as the floor's step shows once the floors are gone.
+  far:
+    build:
+      context: .
+      target: far
+    cap_add: [NET_ADMIN]
+    networks:
+      remote:
+        ipv4_address: 192.0.2.10
+    command:
+      - sh
+      - -ec
+      - |
+        ip address add 198.18.0.10/32 dev lo
+        ip address add 198.18.1.53/32 dev eth0
+        ip route add 203.0.113.0/24 via 192.0.2.2
+        ip route add 198.51.100.0/24 via 192.0.2.2
+        socat TCP-LISTEN:8080,fork,reuseaddr EXEC:/usr/local/bin/peer &
+        exec dnsmasq --keep-in-foreground --log-facility=- --log-queries \
+          --no-resolv --no-hosts --listen-address=192.0.2.10,198.18.1.53 \
+          --bind-interfaces \
+          --address=/host.example.test/outage.example.test/192.0.2.20 \
+          --address=/example.test/192.0.2.10
+
+  # A host on the client's own LAN, inside a floor install is given, as a laptop on a home LAN.
+  # Port 8080 answers a connection with the address it came from, as the far host's does.
+  lan:
+    build:
+      context: .
+      target: far
+    init: true
+    networks:
+      lan:
+        ipv4_address: 10.88.88.208
+    command: ["socat", "TCP-LISTEN:8080,fork,reuseaddr", "EXEC:/usr/local/bin/peer"]
+
+  # The server ikeward installs on: systemd, and Docker inside, on volumes of their own. It is
+  # privileged, for systemd to run its cgroups and Docker its containers, and its image masks the
+  # units that would reach the host's kernel or devices. ikeward and the profile come from the
+  # test.
+  client:
+    build:
+      context: .
+      target: client
+    privileged: true
+    cgroup: private
+    environment:
+      container: docker
+    # Docker's resolver, which resolved takes for its global server, forwards to an address no
+    # one has, in a range for benchmarks, so that only ikeward0's routing domains get answers. Where
+    # the host's Docker forwards to a resolver the tunnel reaches, the tunnel would take that on.
+    dns: 198.18.255.1
+    extra_hosts:
+      - vpn.example.org=198.51.100.10
+    volumes:
+      - ${IKEWARD_BINARY:?}:/usr/local/sbin/ikeward:ro
+      - ${IKEWARD_INTEGRATION_DIR:?}/client.zip:/root/client.zip:ro
+      - /var/lib/containerd
+      - /var/lib/docker
+    # The uplink comes first, and the LAN second, though Docker may name either eth0.
+    networks:
+      internet:
+        ipv4_address: 198.51.100.20
+        priority: 100
+      lan:
+        ipv4_address: 10.88.88.50
+    mem_limit: 2g
+    healthcheck:
+      test: ["CMD", "systemctl", "is-system-running", "--quiet"]
+      interval: 1s
+      retries: 120
+
+networks:
+  # The Internet between the client and the VPN server, in TEST-NET-2, a range for documentation.
+  internet:
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.inhibit_ipv4: "true"
+    ipam:
+      config:
+        - subnet: 198.51.100.0/24
+  # The remote network behind the VPN server, in TEST-NET-1, where its resolver is 192.0.2.10.
+  remote:
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.inhibit_ipv4: "true"
+    ipam:
+      config:
+        - subnet: 192.0.2.0/24
+  # The client's own LAN, inside a floor install is given.
+  lan:
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.inhibit_ipv4: "true"
+    ipam:
+      config:
+        - subnet: 10.88.88.0/24

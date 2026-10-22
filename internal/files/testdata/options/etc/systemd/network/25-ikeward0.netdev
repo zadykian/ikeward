@@ -1,0 +1,12 @@
+# Written by ikeward install, which rewrites it: change ikeward, not this file.
+# The tunnel: what goes out here goes through the SAs whose ID is InterfaceId,
+# or nowhere. It holds the address from the server: see
+# /etc/strongswan.d/zz-ikeward.conf.
+[NetDev]
+Name=ikeward0
+Kind=xfrm
+
+[Xfrm]
+InterfaceId=26987
+# On no underlying link: the SAs go out by whichever link reaches the server.
+Independent=yes

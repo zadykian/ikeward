@@ -1,0 +1,70 @@
+#!/bin/sh
+# Fails on the files whose secrets gitleaks cannot read, and on a .gitleaksignore:
+#
+#   tools/profilecheck [--all]
+#
+# A file is a path in HEAD's history, or every ref's with --all, or among the files git lists, new
+# ones included. It fails on a binary file, which gitleaks does not read. It fails on a key's, a
+# certificate's, an archive's or a client profile's file too, by its extension in any case, which
+# .gitignore ignores. gitleaks would pass over the findings that a .gitleaksignore lists.
+
+set -eu
+
+# extensions are those of keys, certificates, archives and a client profile's files, as
+# docs/checks.md lists them.
+extensions='key|pem|ppk|p8|pk8|jks|keystore|kdbx|gpg|pgp|asc|crt|cer|der|csr|p7b|p7c'
+extensions="$extensions|zip|tar|tgz|gz|bz2|xz|zst|7z|rar|p12|pfx|sswan|mobileconfig"
+
+# say prints a message of the script's.
+say() {
+    printf 'tools/profilecheck: %s\n' "$*" >&2
+}
+
+# die prints a message of the script's and exits with status 1.
+die() {
+    say "$*"
+    exit 1
+}
+
+main() {
+    revs=HEAD
+    if [ "${1-}" = --all ]; then
+        revs=--all
+        shift
+    fi
+    [ $# -eq 0 ] || die "usage: tools/profilecheck [--all]"
+    root=$(git rev-parse --show-toplevel) || die "git cannot read the work tree"
+    [ ! -e "$root/.gitleaksignore" ] ||
+        die "gitleaks would pass over what .gitleaksignore lists: fix those findings, and remove it"
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    trap 'exit 1' HUP INT TERM
+
+    # A NUL ends each name, which git then leaves unquoted; a newline in one splits it, and the
+    # part that names the extension still matches. git marks a binary file -text, in the index or
+    # the work tree, and each change of one - - in --numstat.
+    git ls-files -z --eol --cached --others --exclude-standard >"$tmp/listed" ||
+        die "git cannot list the files"
+    : >"$tmp/names"
+    : >"$tmp/numstat"
+    if [ "$revs" = --all ] || git rev-parse -q --verify HEAD >/dev/null; then
+        git log -m --no-renames --no-show-signature --format= --name-only -z "$revs" \
+            >"$tmp/names" || die "git cannot read the history of $revs"
+        git log -m --no-renames --no-show-signature --format= --numstat -z "$revs" \
+            >"$tmp/numstat" || die "git cannot read the history of $revs"
+    fi
+    tr '\0' '\n' <"$tmp/listed" | sed -n 's/^[^	]*[iw]\/-text[^	]*	//p' >"$tmp/found"
+    tr '\0' '\n' <"$tmp/numstat" | sed -n 's/^-	-	//p' >>"$tmp/found"
+    {
+        tr '\0' '\n' <"$tmp/listed" | sed 's/^[^	]*	//'
+        tr '\0' '\n' <"$tmp/names"
+    } | LC_ALL=C grep -i -E "\\.($extensions)\$" >>"$tmp/found" || :
+    LC_ALL=C sort -u "$tmp/found" >"$tmp/sorted"
+    [ -s "$tmp/sorted" ] || return 0
+    cat "$tmp/sorted"
+    say "the files above are binary, or a key's, a certificate's, an archive's or a client" \
+        "profile's, whose secrets gitleaks cannot read: take them out of the history"
+    return 1
+}
+
+main "$@"

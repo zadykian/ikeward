@@ -1,0 +1,28 @@
+# Dependabot's pull requests: the Go modules and the actions, a grouped pull request of each a
+# month, of versions out a week at least. Their headers take build: and ci:, so that make commits
+# passes them. Each runs CI with Dependabot's own secrets, DENYLIST among them
+# (docs/maintaining.md).
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      go:
+        patterns: ["*"]
+    commit-message:
+      prefix: build
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

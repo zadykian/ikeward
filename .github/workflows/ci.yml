@@ -1,0 +1,95 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  # gofmt, go vet, the tests, and ShellCheck, shfmt and golangci-lint at the versions tools/run
+  # pins, as `make check` runs them anywhere else. Then make build, whose binaries, stamped version
+  # and ikeward.sha256 install.sh relies on, and make notices, as release.yml publishes them. make
+  # leaves denycheck to the last step, which alone gets the secret DENYLIST (docs/checks.md).
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - run: make check DENYCHECK=true
+      - run: make build VERSION=0.0.0-ci
+      - run: test "$(dist/ikeward-linux-amd64 --version)" = "ikeward version 0.0.0-ci"
+      - run: cd dist && sha256sum -c ikeward.sha256
+      - run: make notices
+      # make check's denycheck on the tree, then on what make build and make notices wrote. A fork's
+      # pull request goes without the list, and passes with a note.
+      - name: denycheck
+        if: ${{ !cancelled() }}
+        env:
+          DENYLIST: ${{ secrets.DENYLIST }}
+        run: |
+          status=0
+          go run ./tools/denycheck || status=1
+          [ ! -d dist ] || go run ./tools/denycheck -files dist/* || status=1
+          exit "$status"
+
+  # make lint: every gate, each failing on any finding, with the tools tools/run pins. -k runs every
+  # gate past a failed one, so the log shows each that fails. gitleaks scans each commit of HEAD's
+  # history, and make commits those after origin/main, so the checkout takes the whole history.
+  # denycheck's gates run in a step of their own, which alone gets the secret DENYLIST.
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - run: make -k lint DENYCHECK=true
+        env:
+          # zizmor's online audits, which look the actions up on GitHub, need a token.
+          GH_TOKEN: ${{ github.token }}
+      # make denycheck's and make commits' runs of denycheck, each past the other's failure.
+      - name: denycheck
+        if: ${{ !cancelled() }}
+        env:
+          DENYLIST: ${{ secrets.DENYLIST }}
+        run: |
+          status=0
+          go run ./tools/denycheck || status=1
+          go run ./tools/denycheck -history origin/main..HEAD || status=1
+          exit "$status"
+
+  # make integration: the VPN end to end in Docker Compose, between a strongSwan server and a
+  # client that runs systemd, on the Ubuntu release the client runs.
+  integration:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      # The images hold no kernel modules, so the runner loads those of the tunnel, its link
+      # ikeward0 and the NAT rules, ikeward's masquerade among them, which its kernel's
+      # linux-modules package has.
+      - run: sudo modprobe -a esp4 xfrm_user xfrm_interface nft_chain_nat nft_nat nft_masq
+      - run: make integration

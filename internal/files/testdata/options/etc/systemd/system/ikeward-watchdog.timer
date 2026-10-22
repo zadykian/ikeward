@@ -1,0 +1,14 @@
+# Written by ikeward install, which rewrites it: change ikeward, not this file.
+[Unit]
+Description=Run ikeward's watchdog every 5 minutes
+
+[Timer]
+# The first run once the network has settled after boot.
+OnBootSec=3min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30
+AccuracySec=10s
+Unit=ikeward-watchdog.service
+
+[Install]
+WantedBy=timers.target

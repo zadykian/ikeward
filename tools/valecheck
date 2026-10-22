@@ -1,0 +1,94 @@
+#!/bin/sh
+# Runs Vale on the Markdown files and Go sources that git lists in the work tree it runs in, or on
+# the FILEs, with this repository's .vale.ini alone:
+#
+#   tools/valecheck [FILE...]
+#
+# Each file goes to Vale as the Markdown mirror that tools/valemirror writes: a Go file's holds the
+# prose of its comments, and a Markdown file's has a stand-in for $. The alerts come back with the
+# files' own paths, lines and columns. A comment that turns Vale, rumdl or markdownlint off is an
+# alert too. The exit status is 1 for an alert, and 2 where the check cannot run.
+
+set -eu
+
+# root is this repository's: .vale.ini, tools/run and tools/valemirror. VALE_CONFIG_PATH, a global
+# config and VALE_STYLES_PATH would replace or extend .vale.ini.
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+unset VALE_CONFIG_PATH VALE_STYLES_PATH
+
+# say prints a message of the script's.
+say() {
+    printf 'tools/valecheck: %s\n' "$*" >&2
+}
+
+# die prints a message of the script's and exits with status 2.
+die() {
+    say "$*"
+    exit 2
+}
+
+# files writes the files to check to $tmp/files, sorted: the FILEs given, or every one git lists,
+# new files included but not those it ignores, as sizecheck takes them. A FILE that is neither
+# Markdown nor Go is passed over, so that any list of files will do. A listed file gone from disk,
+# or not a regular file, is passed over too.
+files() {
+    if [ $# -eq 0 ]; then
+        # A NUL ends each name, which git then leaves unquoted.
+        git ls-files -z --cached --others --exclude-standard -- '*.md' '*.go' >"$tmp/listed" ||
+            die "git cannot list the files"
+        [ "$(tr -d -c '\n' <"$tmp/listed" | wc -c)" -eq 0 ] || die "a file's name holds a newline"
+        tr '\0' '\n' <"$tmp/listed" | while IFS= read -r file; do
+            [ ! -f "$file" ] || printf '%s\n' "$file"
+        done >"$tmp/given"
+    else
+        for file; do
+            [ -f "$file" ] || die "no file $file"
+            case $file in
+            *.md | *.go) printf '%s\n' "${file#./}" ;;
+            esac
+        done >"$tmp/given"
+    fi
+    LC_ALL=C sort -u "$tmp/given" >"$tmp/files"
+}
+
+# alerts writes Vale's alerts on the files to $tmp/alerts, a line each, then those on the comments
+# that turn a gate off.
+alerts() {
+    set --
+    while IFS= read -r file; do
+        set -- "$@" "$file"
+    done <"$tmp/files"
+    : >"$tmp/alerts"
+    [ $# -gt 0 ] || return 0
+    go -C "$root" build -o "$tmp/valemirror" ./tools/valemirror ||
+        die "cannot build tools/valemirror"
+    "$tmp/valemirror" -switches "$@" >"$tmp/switches" || die "tools/valemirror failed"
+    "$tmp/valemirror" "$tmp/mirrors" "$@" >"$tmp/mirrored" || die "tools/valemirror failed"
+    set --
+    while IFS= read -r file; do
+        set -- "$@" "$file"
+    done <"$tmp/mirrored"
+    # Vale reads stdin when given no file.
+    if [ $# -gt 0 ]; then
+        "$root/tools/run" vale --no-global --config="$root/.vale.ini" --no-exit --output=line \
+            "$@" >"$tmp/vale" || die "Vale failed"
+        "$tmp/valemirror" -alerts "$tmp/mirrors" <"$tmp/vale" >"$tmp/alerts" ||
+            die "tools/valemirror failed"
+    fi
+    cat "$tmp/switches" >>"$tmp/alerts"
+}
+
+main() {
+    tmp=$(mktemp -d) || exit 2
+    trap 'rm -rf "$tmp"' EXIT
+    trap 'exit 2' HUP INT TERM
+
+    files "$@"
+    alerts
+    [ -s "$tmp/alerts" ] || return 0
+    cat "$tmp/alerts"
+    say "the alerts above fail the check"
+    return 1
+}
+
+main "$@"

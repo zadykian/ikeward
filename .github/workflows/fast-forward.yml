@@ -1,0 +1,30 @@
+name: fast-forward
+
+# Pull requests land on main by fast-forward, as the very commits their checks ran on: a comment
+# `/ff` on a pull request into main, from someone who can push here, pushes its head commit to
+# main, and deletes its branch. https://github.com/zadykian/ff says how, and which settings it
+# relies on. A pull request that changes .github/workflows is pushed by hand,
+# `git push origin SHA:main`, as the workflow's token may not push it.
+#
+# The job starts only for a comment of `/ff` alone, by the repository's owner, a member or a
+# collaborator; the action then checks that the commenter can push.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions: {}
+
+jobs:
+  fast-forward:
+    if: >-
+      github.event.issue.pull_request && github.event.comment.body == '/ff' &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
+        github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: zadykian/ff@5af23167951a0772de3bd262be8990abc3534cf3 # v1.1.0

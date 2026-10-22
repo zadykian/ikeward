@@ -1,0 +1,36 @@
+name: history
+
+# Each week, make history: gitleaks, tools/profilecheck and tools/denycheck over every commit of
+# every branch and tag, whole. So a rule or a term added since finds what landed before it, and
+# what lies on a branch that never landed (docs/checks.md).
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Every branch and tag, with all its history.
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      # -k runs each scan past one that fails, so the log shows each that does. make leaves
+      # denycheck to a step of its own, which alone gets the secret DENYLIST (docs/checks.md).
+      - run: make -k history DENYCHECK=true
+      - if: ${{ !cancelled() }}
+        run: go run ./tools/denycheck -history --all
+        env:
+          DENYLIST: ${{ secrets.DENYLIST }}

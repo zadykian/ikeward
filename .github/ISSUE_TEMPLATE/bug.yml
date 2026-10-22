@@ -1,0 +1,48 @@
+# The form of an issue that reports a bug. GitHub reads it; nothing private goes in an issue.
+name: Bug
+description: ikeward does something wrong.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Report a vulnerability privately instead, as SECURITY.md says. Make up each value you give,
+        as the tests do, from documentation ranges and example.test.
+  - type: checkboxes
+    id: private
+    attributes:
+      label: Nothing private
+      options:
+        - label: >-
+            This issue holds no profile, key, certificate or password, and no employer's names,
+            hosts, addresses or domains.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: What `ikeward --version` prints.
+      placeholder: ikeward version 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: The distribution, its version, and the machine.
+      placeholder: Ubuntu 26.04, amd64
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what ikeward printed, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: ikeward status
+      description: What `ikeward status` prints, with made-up values in place of real ones.
+      render: text

@@ -1,0 +1,29 @@
+# Written by ikeward install, which rewrites it: change ikeward, not this file.
+[Unit]
+Description=ikeward's routing: the server's networks before the remote network
+Documentation=https://github.com/zadykian/ikeward
+# Before any link comes up, and before strongSwan. As nftables.service, it has
+# no default dependencies, which would hold it, and networkd, back until
+# sysinit.target.
+DefaultDependencies=no
+Wants=network-pre.target
+Before=network-pre.target strongswan.service shutdown.target
+Conflicts=shutdown.target
+# After nftables.service, where it is enabled, whose flush ruleset would remove
+# the NAT table; and once the file systems that hold ikeward and the ranges it
+# learned are mounted.
+After=nftables.service
+RequiresMountsFor=/usr/local/sbin/ikeward /var/lib/ikeward
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Makes the rules, the floors in table 220 and the NAT table, which stay once
+# the unit stops, until uninstall removes them. There is a floor for each
+# range /var/lib/ikeward/settings gives, and one for each range
+# /var/lib/ikeward/learned-ranges records. A restart adds what is missing, and
+# makes the NAT table anew, in one transaction.
+ExecStart=/usr/local/sbin/ikeward routing
+
+[Install]
+WantedBy=multi-user.target

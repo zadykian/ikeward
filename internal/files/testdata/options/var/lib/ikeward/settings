@@ -1,0 +1,7 @@
+# Written by ikeward install, which rewrites it: change ikeward, not this file.
+# The remote network's values, which install's flags gave: --dns, each --domain,
+# --probe and each --floor. ikeward routing, status and the watchdog read them.
+dns 192.0.2.10
+domain example.test
+probe example.test
+floor 10.88.0.0/16

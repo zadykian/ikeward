@@ -1,0 +1,18 @@
+# Written by ikeward install, which rewrites it: change ikeward, not this file.
+[Unit]
+Description=ikeward's watchdog of the VPN
+Documentation=https://github.com/zadykian/ikeward
+After=strongswan.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ikeward watchdog
+# The watchdog restarts strongSwan itself, and exits 1 while the VPN stays
+# unhealthy, which is no failure of the unit; it exits 3 where it fails itself.
+SuccessExitStatus=0 1
+TimeoutStartSec=120
+# journalctl -t ikeward-watchdog shows its lines. It prints nothing while the
+# VPN is up, so each line is a warning: what failed, or what it did.
+SyslogIdentifier=ikeward-watchdog
+SyslogLevel=warning

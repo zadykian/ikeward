@@ -1,0 +1,227 @@
+#!/bin/sh
+# Runs a tool `make check` or `make lint` uses, at the version pinned here:
+#
+#   tools/run NAME [ARG...]   runs the tool with the ARGs
+#   tools/run -path NAME      prints the path of the tool's executable
+#
+# Each tool comes from its GitHub release for Linux or macOS on amd64 or arm64. The first run
+# downloads it into .cache/tools and checks its SHA-256, in a directory named for its version and
+# the start of its sum: a pin that changes either downloads it again. A bump changes a tool's
+# version and its four sums, which the release's checksums file or GitHub's asset digests give. It
+# needs curl, tar, and sha256sum or shasum.
+
+set -eu
+
+# say prints a message of the script's.
+say() {
+    printf 'tools/run: %s\n' "$*" >&2
+}
+
+# die prints a message of the script's and exits with status 1.
+die() {
+    say "$*"
+    exit 1
+}
+
+# platform sets os and arch as Go names them, and cpu as Rust and ShellCheck name arch.
+platform() {
+    case $(uname -s) in
+    Linux) os=linux ;;
+    Darwin) os=darwin ;;
+    *) die "the tools are pinned for Linux and macOS, not $(uname -s)" ;;
+    esac
+    case $(uname -m) in
+    x86_64 | amd64) arch=amd64 cpu=x86_64 ;;
+    aarch64 | arm64) arch=arm64 cpu=aarch64 ;;
+    *) die "the tools are pinned for x86_64 and arm64, not $(uname -m)" ;;
+    esac
+}
+
+# pick sets sum to the one of the four SHA-256 sums, in the order linux-amd64, linux-arm64,
+# darwin-amd64 and darwin-arm64, that is this platform's.
+pick() {
+    case $os-$arch in
+    linux-amd64) sum=$1 ;;
+    linux-arm64) sum=$2 ;;
+    darwin-amd64) sum=$3 ;;
+    darwin-arm64) sum=$4 ;;
+    esac
+}
+
+# pin sets version, url, sum and member for the tool $1. member is the executable's path in the
+# archive, or empty where the download is the executable itself.
+pin() {
+    gh=https://github.com
+    case $1 in
+    actionlint)
+        version=1.7.12
+        url=$gh/rhysd/actionlint/releases/download/v$version
+        url=$url/actionlint_${version}_${os}_$arch.tar.gz
+        member=actionlint
+        pick 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 \
+            325e971b6ba9bfa504672e29be93c24981eeb1c07576d730e9f7c8805afff0c6 \
+            5b44c3bc2255115c9b69e30efc0fecdf498fdb63c5d58e17084fd5f16324c644 \
+            aba9ced2dee8d27fecca3dc7feb1a7f9a52caefa1eb46f3271ea66b6e0e6953f
+        ;;
+    gitleaks)
+        # gitleaks names amd64 x64.
+        version=8.30.1
+        case $arch in
+        amd64) member=x64 ;;
+        arm64) member=arm64 ;;
+        esac
+        url=$gh/gitleaks/gitleaks/releases/download/v$version
+        url=$url/gitleaks_${version}_${os}_$member.tar.gz
+        member=gitleaks
+        pick 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb \
+            e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080 \
+            dfe101a4db2255fc85120ac7f3d25e4342c3c20cf749f2c20a18081af1952709 \
+            b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5
+        ;;
+    golangci-lint)
+        version=2.14.0
+        member=golangci-lint-$version-$os-$arch
+        url=$gh/golangci/golangci-lint/releases/download/v$version/$member.tar.gz
+        member=$member/golangci-lint
+        pick ab90aeb7b066f92a33415b638a50fe5344bbb75a0d32ad30cc248d88f81032ab \
+            ee7ec5f3453d15ddf106fae5a4d6c71737712348a979d1fe9cd52ec7ea299bae \
+            a5667c1c3536be1740133213e1e822bfb8f0d98ea12903174d6d5f635e4ed68d \
+            5ef5f36a7147e91dc58ef9ef4d11bb7bad5ead0c76eb6c01327a73c641d1dcc3
+        ;;
+    lychee)
+        # Linux's build is musl's, which links statically.
+        version=0.24.2
+        case $os in
+        linux) member=lychee-$cpu-unknown-linux-musl ;;
+        darwin) member=lychee-$cpu-apple-darwin ;;
+        esac
+        url=$gh/lycheeverse/lychee/releases/download/lychee-v$version/$member.tar.gz
+        member=$member/lychee
+        pick 73657a111819a30c47c08352896796f23d64e4eb2b3ed39b6d32149241566fc5 \
+            5d0b0e3aeab240f41920c633a6eaf97599be6eedda034b36e858ede7dba5e535 \
+            887503a9cff667d322b8d0892b40bf49976eb9507af8483220a3706cdad55978 \
+            c9d3740ea2d891854d37116c9fba840f37b6e7c89d330e7db84ac333631c4977
+        ;;
+    rumdl)
+        # Linux's build is musl's, which links statically.
+        version=0.2.78
+        case $os in
+        linux) member=$cpu-unknown-linux-musl ;;
+        darwin) member=$cpu-apple-darwin ;;
+        esac
+        url=$gh/rvben/rumdl/releases/download/v$version/rumdl-v$version-$member.tar.gz
+        member=rumdl
+        pick 507d2243ca3582094588c0610c2ee5c3bcd0a50a8564149dcce4268cdf50de82 \
+            83afca5be68f8710cf5e3faef103927af8ef8dec3b19bd33ceebef348f3e546e \
+            0cb4eecf286798e770c1f9e85fbf532ee135becc248a25fab388355c998543f9 \
+            450f00cdbf1da3bc3fbdf56c52dc9e6b2ab08bfd1ee6a26b44848e52a180dba5
+        ;;
+    shellcheck)
+        version=0.11.0
+        url=$gh/koalaman/shellcheck/releases/download/v$version
+        url=$url/shellcheck-v$version.$os.$cpu.tar.gz
+        member=shellcheck-v$version/shellcheck
+        pick b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6 \
+            68a8133197a50beb8803f8d42f9908d1af1c5540d4bb05fdfca8c1fa47decefc \
+            c2c15e08df0e8fbc374c335b230a7ee958c313fa5714817a59aa59f1aa594f51 \
+            339b930feb1ea764467013cc1f72d09cd6b869ebf1013296ba9055ab2ffbd26f
+        ;;
+    shfmt)
+        version=3.14.1
+        url=$gh/mvdan/sh/releases/download/v$version/shfmt_v${version}_${os}_$arch
+        member=
+        pick 76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf \
+            5f2db09dae91fca848f7adbdd014632e921a383863a2ad7e0450ad3aba0c6489 \
+            d33eee0da0f92835b3562e9767a05cee7e4eaeef47daa03bfd09da17b4b590a6 \
+            b7c872db63553ccffc7253aba3ed7d4885a27d83f1ba567b1138c6315a5847e5
+        ;;
+    vale)
+        # Vale's release binaries, as it needs cgo to read code comments.
+        version=3.23.0
+        case $os-$arch in
+        linux-amd64) member=Linux_64-bit ;;
+        linux-arm64) member=Linux_arm64 ;;
+        darwin-amd64) member=macOS_64-bit ;;
+        darwin-arm64) member=macOS_arm64 ;;
+        esac
+        url=$gh/errata-ai/vale/releases/download/v$version/vale_${version}_$member.tar.gz
+        member=vale
+        pick cc35445a45186b8f0b01e11c01359694cf941e72cf6ab0fc44774f0e54c9d5fc \
+            45720aadcb01401ac394641287a2c74e094045a89a450f5edcf98c8969df0884 \
+            416fdd3ba32e32dc71c87b479cb86757bb6437bcebc7a3e4a095e863b7ce583d \
+            b913574b2c83b541d8bc2d8938e53a58a2fb06bab15135efcc755afb074f4430
+        ;;
+    zizmor)
+        version=1.30.1
+        case $os in
+        linux) member=$cpu-unknown-linux-gnu ;;
+        darwin) member=$cpu-apple-darwin ;;
+        esac
+        url=$gh/zizmorcore/zizmor/releases/download/v$version/zizmor-$member.tar.gz
+        member=zizmor
+        pick e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a \
+            7ff1dce33bdd18fd2a4affe63bdd47efcccca97b2cec1c1863ec26e9e2647540 \
+            10e6b18b11ea07e515a16f0f0518c7b07527bc9977c1fd5698181ce7f3554202 \
+            e28d22b087f9ebb8d99da6e740d348c930f559961c7c3f12badda54f882195a2
+        ;;
+    *)
+        die "no tool $1: actionlint, gitleaks, golangci-lint, lychee, rumdl, shellcheck, shfmt," \
+            "vale or zizmor"
+        ;;
+    esac
+}
+
+# sha256 prints the SHA-256 checksum of the file $1.
+sha256() {
+    if command -v sha256sum >/dev/null; then
+        sha256sum <"$1"
+    else
+        shasum -a 256 <"$1"
+    fi | awk '{ print $1 }'
+}
+
+# fetch downloads the tool $1 to $bin, checked against its sum. The executable moves into place
+# last, so that a download cut short or a second run at once leaves no partial file there.
+fetch() {
+    mkdir -p "$cache"
+    tmp=$(mktemp -d "$cache/.fetch.XXXXXX")
+    trap 'rm -rf "$tmp"' EXIT
+    trap 'exit 1' HUP INT TERM
+    say "downloading $1 $version"
+    curl -fsSL --retry 3 --proto-redir =https -o "$tmp/download" "$url" ||
+        die "cannot download $url"
+    [ "$(sha256 "$tmp/download")" = "$sum" ] ||
+        die "$url does not match the SHA-256 pinned in tools/run"
+    if [ -n "$member" ]; then
+        tar -xzf "$tmp/download" -C "$tmp" "$member" || die "$url has no $member"
+        mv "$tmp/$member" "$tmp/download"
+    fi
+    chmod 755 "$tmp/download"
+    mkdir -p "${bin%/*}"
+    mv -f "$tmp/download" "$bin"
+    rm -rf "$tmp"
+    trap - EXIT HUP INT TERM
+}
+
+main() {
+    path=false
+    if [ "${1-}" = -path ]; then
+        path=true
+        shift
+    fi
+    [ $# -ge 1 ] || die "usage: tools/run NAME [ARG...] or tools/run -path NAME"
+    name=$1
+    shift
+    platform
+    pin "$name"
+    cache=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)/.cache/tools
+    bin=$cache/$name-$version-$(printf %.12s "$sum")/$name
+    [ -x "$bin" ] || fetch "$name"
+    if $path; then
+        printf '%s\n' "$bin"
+    else
+        exec "$bin" "$@"
+    fi
+}
+
+main "$@"

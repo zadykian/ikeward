@@ -1,0 +1,110 @@
+name: release
+
+# A tag vX.Y.Z publishes a release: ikeward-linux-amd64 and -arm64, ikeward.sha256 listing them,
+# install.sh, which installs them as the README says, and third-party-notices.txt.
+#
+# install.sh takes IKEWARD_VERSION as X.Y.Z alone, with no leading zero, so no other tag publishes:
+# the check job refuses one that the tag filter lets through, as v01.2.3.
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions: {}
+
+jobs:
+  # make check and its denycheck, as ci.yml's check job runs them; the tagged commit's pull
+  # request ran the integration test, which holds only for a commit on main.
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      # The filter's [0-9]+ takes a leading zero, which install.sh refuses in IKEWARD_VERSION; such
+      # a tag would still publish, and become the latest release.
+      - name: Check that the tag is vX.Y.Z
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+          [[ $TAG =~ $version ]] || {
+            echo "::error::$TAG is not a version vX.Y.Z, three numbers with no leading zero"
+            exit 1
+          }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # All of main's history, to tell whether it holds the tagged commit.
+          fetch-depth: 0
+      # A tag on any other commit would publish what no pull request checked, and GitHub would
+      # mark it the latest release, which install.sh installs by default.
+      - name: Check that main holds the tagged commit
+        run: |
+          git merge-base --is-ancestor HEAD origin/main || {
+            echo "::error::$GITHUB_REF_NAME tags $(git rev-parse HEAD), which is not on main"
+            exit 1
+          }
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          # Nothing a pull request's run cached goes into what a release checks.
+          cache: false
+      - run: make check DENYCHECK=true
+      # denycheck alone gets the secret, in a step of its own (docs/checks.md).
+      - run: go run ./tools/denycheck
+        env:
+          DENYLIST: ${{ secrets.DENYLIST }}
+
+  publish:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          # Nothing restored from a cache goes into what is published.
+          cache: false
+      # make build: a static binary per platform, ikeward.sha256 and install.sh, in dist. make
+      # notices adds the licenses of what the binaries hold. A build that fails for any platform
+      # fails the job before anything is published. The runner is linux/amd64, so its binary must
+      # say the tag's version.
+      - name: Build
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          make build VERSION="${TAG#v}"
+          make notices
+          test "$(dist/ikeward-linux-amd64 --version)" = "ikeward version ${TAG#v}"
+          (cd dist && sha256sum -c ikeward.sha256)
+      # GitHub writes the notes from the pull requests since the last release. denycheck reads
+      # them and every file of dist before anything is published.
+      - name: Write the notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh api -X POST "repos/$GH_REPO/releases/generate-notes" -f tag_name="$TAG" --jq .body \
+            >"$RUNNER_TEMP/notes.md"
+      - name: Check for an employer's terms
+        env:
+          DENYLIST: ${{ secrets.DENYLIST }}
+        run: |
+          go run ./tools/denycheck -files dist/*
+          go run ./tools/denycheck -stdin notes <"$RUNNER_TEMP/notes.md"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" dist/ikeward-linux-amd64 dist/ikeward-linux-arm64 \
+            dist/ikeward.sha256 dist/install.sh dist/third-party-notices.txt --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
