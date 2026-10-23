@@ -90,7 +90,8 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
   `helpers_test.go` the checks the files share.
 - `tests/tools`: a file per script of `tools/` but `run`, as `commitcheck_test.go`, and
   `TestGitleaks`, which runs `make gitleaks`, in `profilecheck_test.go`. `makefile_test.go` covers
-  the Makefile's recipes and `tools/run -path`. `tests/hooks`: `lint_file_test.go`, the file hook;
+  the Makefile's recipes and `tools/run -path`, and `lint_file_test.go` `make lint-file`.
+  `tests/hooks`: `lint_file_test.go`, the file hook;
   `lint_branch_test.go`, the Stop hook and the settings.
 - `tests/integration`: `integration_test.go`, the steps' order and the install, tunnel, resolver,
   resolver's probe and uninstall steps. `names_test.go`, the names with strongSwan stopped and

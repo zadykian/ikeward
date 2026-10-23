@@ -40,8 +40,9 @@ DENYCHECK = go run ./tools/denycheck
 GITLEAKS = tools/run gitleaks git --config=.gitleaks.toml --ignore-gitleaks-allow --no-banner \
 	--redact --verbose
 
-.PHONY: check lint lint-local vet golangci-lint sizecheck vale lychee rumdl govulncheck licenses \
-	actionlint zizmor gitleaks denycheck commits history test integration build notices
+.PHONY: check lint lint-local lint-file lint-tree vet golangci-lint sizecheck vale lychee rumdl \
+	govulncheck licenses actionlint zizmor gitleaks denycheck commits history test integration \
+	build notices
 
 # The checks and the tests that CI's check job runs; each fails on any finding.
 check: vet golangci-lint denycheck test
@@ -56,6 +57,38 @@ lint: vet golangci-lint sizecheck vale lychee rumdl govulncheck licenses actionl
 lint-local: ZIZMOR_FLAGS = --offline
 lint-local: vet golangci-lint sizecheck vale lychee rumdl licenses actionlint zizmor gitleaks \
 	denycheck commits
+
+# The gates of each file of FILES, as the lint plugin runs them after Claude edits a file: those
+# of its type, as lint-local runs them on every file, zizmor offline. Then, whatever its type, a
+# shell script's checks, found by its name or its shebang as vet finds them, the size caps,
+# gitleaks and denycheck. gitleaks heeds no gitleaks:allow comment and reads no .gitleaksignore.
+lint-file:
+	@status=0; for file in $(FILES); do \
+		case $$file in \
+		*.go) test -z "$$(gofmt -l "$$file" 2>&1)" || { gofmt -d "$$file"; status=1; }; \
+			tools/run golangci-lint run --allow-serial-runners "./$$(dirname "$$file")/" || \
+				status=1; \
+			$(MAKE) --no-print-directory vale FILES="$$file" || status=1 ;; \
+		*.md) $(MAKE) -k --no-print-directory vale lychee rumdl FILES="$$file" || status=1 ;; \
+		.github/workflows/*.yml | .github/workflows/*.yaml) \
+			{ shellcheck="$$(tools/run -path shellcheck)" && tools/run actionlint \
+				-shellcheck="$$shellcheck" -pyflakes= "$$file"; } || status=1; \
+			tools/run zizmor --strict-collection --offline "$$file" || status=1 ;; \
+		.golangci.yml) tools/run golangci-lint config verify || status=1 ;; \
+		esac; \
+		if [ -n "$$(go run ./tools/sizecheck -scripts "$$file" 2>/dev/null)" ]; then \
+			tools/run shellcheck -s sh "$$file" || status=1; \
+			tools/run shfmt -ln posix -d -i 4 "$$file" || status=1; \
+		fi; \
+		$(MAKE) --no-print-directory sizecheck FILES="$$file" || status=1; \
+		tools/run gitleaks dir --config=.gitleaks.toml --ignore-gitleaks-allow \
+			--gitleaks-ignore-path=/dev/null --no-banner --redact --verbose "$$file" || status=1; \
+		$(DENYCHECK) "$$file" || status=1; \
+	done; exit $$status
+
+# The gates of lint-local, as the lint plugin runs them, with -k, as Claude ends its turn.
+# commits reads origin/main itself, so BASE goes unread.
+lint-tree: lint-local
 
 # The shell scripts are those that sizecheck finds by their name or their shebang among the files
 # git lists, new ones included, as it checks their size. ShellCheck and shfmt read each as POSIX
