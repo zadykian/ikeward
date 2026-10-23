@@ -220,8 +220,7 @@ Each rule links where its reason lives: a docs page, a comment or a CI job.
 
 ## How changes land
 
-- One commit per pull request. Pull requests land on `main` by fast-forward only; never run
-  `gh pr merge`.
+- Pull requests land on `main` by fast-forward only; never run `gh pr merge`.
 - Rebase onto `main`, wait for the checks (`gh pr checks N --watch`), then comment `/ff`, alone,
   on the pull request (`.github/workflows/fast-forward.yml`). `/ff` pushes at once, and `main`'s
   ruleset refuses the push until CI's `check`, `integration` and `lint` pass and every
@@ -243,6 +242,10 @@ Each rule links where its reason lives: a docs page, a comment or a CI job.
 
 ## Commits
 
+The `atomic-commits` skill of `flow` cuts a change into commits, each of one logical change that
+`make check` and `make lint` pass, and a change over 300 lines into stacked pull requests. What
+follows wins where it differs.
+
 Messages follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
 `make commits` (`tools/commitcheck`) checks each commit from `origin/main` to `HEAD` for these
 ([the commit messages](docs/checks.md#the-commit-messages)):
@@ -258,8 +261,9 @@ Review checks the rest:
 
 - The description is short and lower case, a noun phrase or an imperative, as `main`'s history has
   both. The body is a list of bullets: what was missing, what changed, what was checked.
-- A pull request's title is its commit's header. Its body starts `Part of #N.`, or `Closes #N.` on
-  the one that completes the issue, then `## What` and what was checked.
+- A pull request's title is a header too, its commit's where it holds one. Its body starts
+  `Part of #N.`, or `Closes #N.` on the one that completes the issue. Then come `## What`,
+  `## Stack` in a stack of several, and what was checked.
 
 ## Where else to look
 

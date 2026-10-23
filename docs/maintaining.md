@@ -13,10 +13,10 @@ collaborator who can push here, pushes the pull request's head to `main`
 by hand, `git push origin SHA:main`, as the workflow's token may not push such a change.
 
 `main`'s ruleset requires CI's `check`, `integration` and `lint` jobs to have passed on a commit
-before it lands there, by `/ff` or by hand. It requires a signed commit, and every conversation
+before it lands there, by `/ff` or by hand. It requires signed commits, and every conversation
 resolved, too.
 
-A pull request is one commit. Pull requests may stack, each on the branch below it. Once the one
+Pull requests may stack, each on the branch below it, as a change over 300 lines does. Once the one
 below lands, retarget the next at `main`, and rebase it where `main` moved. Wait for its checks,
 then `/ff` it. `gh pr edit --base` fails on the Projects (classic) deprecation, so retarget through
 GitHub's API:
@@ -42,7 +42,7 @@ branch out only where Claude Code isn't running, or in a container. CI runs it o
 apart from your machine.
 
 GitHub gives a fork's pull request no secrets, so CI checks it with no list of terms. Before `/ff`,
-check its commit, title, body and branch with the list, by your own clone's `tools/denycheck`, as
+check its commits, title, body and branch with the list, by your own clone's `tools/denycheck`, as
 `/flow:land` does. Each command runs where the one before it succeeded, so a failed `gh` or
 `git` fails the check rather than pass an empty one:
 
