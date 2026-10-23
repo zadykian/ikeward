@@ -76,6 +76,17 @@
     ]
   },
   "plansDirectory": ".claude/plans",
+  "extraKnownMarketplaces": {
+    "zadykian": {
+      "source": { "source": "github", "repo": "zadykian/skills" },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": {
+    "flow@zadykian": true,
+    "docs@zadykian": true,
+    "lint@zadykian": true
+  },
   "hooks": {
     "SessionStart": [
       {

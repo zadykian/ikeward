@@ -127,7 +127,8 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
   a pull request's title, body and branch, and `history.yml` runs `make history` each week.
   `.github/dependabot.yml` asks for the modules' and the actions' updates each month.
 - `.claude/`: Claude's rules, agent, skills and hooks, as [Where else to look](#where-else-to-look)
-  lists them. `settings.json` holds the permissions and wires the hooks.
+  lists them. `settings.json` holds the permissions and wires the hooks. It enables `flow`, `docs`
+  and `lint`, the bundles of the marketplace [zadykian/skills](https://github.com/zadykian/skills).
 
 ## Commands
 
