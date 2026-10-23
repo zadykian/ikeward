@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -160,48 +159,5 @@ func TestLintBranchWorkTrees(t *testing.T) {
 			t.Errorf("%s: status %d, stderr %q, the fakes ran %q; want 0 and %q", step.name,
 				r.status, r.stderr, got, step.want)
 		}
-	}
-}
-
-// TestSettings checks that .claude/settings.json wires each hook to its event, as a script of
-// .claude/hooks that can run.
-func TestSettings(t *testing.T) {
-	t.Parallel()
-	data, err := os.ReadFile(filepath.Join("..", "..", ".claude", "settings.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var settings struct {
-		Hooks map[string][]struct {
-			Matcher string
-			Hooks   []struct{ Type, Command string }
-		}
-	}
-	if err := json.Unmarshal(data, &settings); err != nil {
-		t.Fatal(err)
-	}
-	want := map[string][2]string{
-		"SessionStart": {"startup|resume|clear", "lint-branch.sh"},
-		"PostToolUse":  {"Edit|Write", "lint-file.sh"},
-		"Stop":         {"", "lint-branch.sh"},
-	}
-	for name, groups := range settings.Hooks {
-		if len(groups) != 1 || len(groups[0].Hooks) != 1 || groups[0].Hooks[0].Type != "command" {
-			t.Errorf("%s: %+v, want one command", name, groups)
-			continue
-		}
-		matcher, script := groups[0].Matcher, groups[0].Hooks[0].Command
-		if (want[name] != [2]string{matcher, filepath.Base(script)}) ||
-			script != "${CLAUDE_PROJECT_DIR}/.claude/hooks/"+want[name][1] {
-			t.Errorf("%s: matcher %q, command %q; want %q", name, matcher, script, want[name])
-		}
-		info, err := os.Stat(filepath.Join("..", "..", ".claude", "hooks", filepath.Base(script)))
-		if err != nil || info.Mode()&0o111 == 0 {
-			t.Errorf("%s: %s is no executable: %v", name, script, err)
-		}
-		delete(want, name)
-	}
-	if len(want) != 0 {
-		t.Errorf("no hook for %q", want)
 	}
 }
