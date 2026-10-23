@@ -234,7 +234,7 @@ Each rule links where its reason lives: a docs page, a comment or a CI job.
   `main`, or a number with a leading zero; the maintainer pushes it.
 - Pull requests stack, each on the branch below it. Once the one below lands, retarget the next at
   `main` with `gh api -X PATCH 'repos/{owner}/{repo}/pulls/N' -f base=main`, and rebase it where
-  `main` moved. Wait for its checks, then `/ff` it. The `land` skill walks a stack, and runs
+  `main` moved. Wait for its checks, then `/ff` it. `/flow:land` walks a stack, and runs
   denycheck on each pull request before its `/ff`.
 - `.claude/settings.json` denies `gh pr merge`, the usual forms of a push to `main`, a bare
   `git push` or `git push origin`, a push of `HEAD`, and the usual forms of a tag's push. A rule
@@ -269,8 +269,9 @@ Review checks the rest:
   [tests.md](.claude/rules/tests.md).
 - `.claude/agents/doc-editor.md`: rewrites prose to the writing policy and Vale's rules, keeping
   every fact and link.
-- `.claude/skills/`: `issue`, which plans and files an issue, and `land`, run by hand only, which
-  lands a stack by `/ff`.
+- `.claude/skills/`: `issue`, which plans and files an issue.
+- The marketplace's skills, which ikeward uses as they are: `/flow:land`, run by hand only, lands a
+  stack by `/ff`.
 - `.claude/hooks/`: after each Edit or Write, `lint-file.sh` runs the gates of the file's type, and
   gitleaks and denycheck on any file.
   `lint-branch.sh` notes the work tree as a session starts. As a turn ends, it runs

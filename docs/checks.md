@@ -153,14 +153,14 @@ commits from `origin/main` add. Those targets run it as `DENYCHECK` says. CI's w
 secret `DENYLIST` reaches denycheck alone: no test, no tool and no module that a Dependabot pull
 request bumps sees it. CI's `pr-text` job runs it on a pull request's title, body and
 branch as they change. `release.yml` runs it on each file of the release and on its notes, before
-it publishes them. The `land` skill runs it on a pull request's commits, title, body and branch
+it publishes them. `/flow:land` runs it on a pull request's commits, title, body and branch
 before `/ff`, and `make history` on every ref's history.
 
 With no list, denycheck prints a note and passes, so a contributor without the list can work. In
 GitHub Actions it fails instead, so that a missing `DENYLIST` passes nothing. A fork's own runs
-and a fork's pull request get no secrets, and pass with the note. With `-require`, as the `land`
-skill runs it, it fails without a list anywhere. Its exit status is 1 for a finding. A mistake, a
-list it cannot read and a list of no term exit 2.
+and a fork's pull request get no secrets, and pass with the note. With `-require`, as
+`/flow:land` runs it, it fails without a list anywhere. Its exit status is 1 for a finding. A
+mistake, a list it cannot read and a list of no term exit 2.
 
 ## The history job
 

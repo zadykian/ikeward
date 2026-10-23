@@ -43,7 +43,7 @@ apart from your machine.
 
 GitHub gives a fork's pull request no secrets, so CI checks it with no list of terms. Before `/ff`,
 check its commit, title, body and branch with the list, by your own clone's `tools/denycheck`, as
-the `land` skill does. Each command runs where the one before it succeeded, so a failed `gh` or
+`/flow:land` does. Each command runs where the one before it succeeded, so a failed `gh` or
 `git` fails the check rather than pass an empty one:
 
 ```sh
