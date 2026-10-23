@@ -6,7 +6,7 @@ the commands besides `make lint`.
 `make lint` is the one gate. CI's `lint` job runs it, and so does the maintainer. Any finding fails
 it, warnings included, but for one that govulncheck prints and passes ([govulncheck](#govulncheck)),
 and go-licenses' warning on `golang.org/x/sys`'s assembly ([licenses](#licenses)).
-Claude Code's hooks run the gates as Claude works ([Claude Code's hooks](#claude-codes-hooks)).
+The lint plugin's hooks run the gates as Claude works ([Claude Code's hooks](#claude-codes-hooks)).
 
 ## The gates
 
@@ -73,23 +73,24 @@ and zizmor's online audits with GitHub, so CI's `lint` job checks those.
 
 ## Claude Code's hooks
 
-`.claude/settings.json` wires two hooks, and `tests/hooks` pipes Claude Code's JSON into each.
+The lint plugin of [zadykian/skills](https://github.com/zadykian/skills), which
+`.claude/settings.json` enables, runs two targets of the Makefile as Claude works.
+[Its docs](https://github.com/zadykian/skills/blob/main/docs/lint.md) say when, and what it passes
+over.
 
-- After each Edit or Write, `.claude/hooks/lint-file.sh` runs the gates of the file's type on that
-  file, and `sizecheck`, as `make lint-local` runs them, zizmor offline. Then `gitleaks dir` and
-  `tools/denycheck` read it, whatever its type. It passes over a file outside the repository, one
-  git ignores, and one on a branch from before the gates. A change made through Bash, as `sed -i`
-  or `gofmt -w`, waits for the end of the turn.
-- As a session starts, `.claude/hooks/lint-branch.sh` notes a fingerprint of the work tree Claude
-  is in: `HEAD`, the diff from it, and the files git neither tracks nor ignores. The note sits in
-  that work tree's own git directory.
-- As Claude ends its turn, `lint-branch.sh` runs `make -k lint-local` where the fingerprint
-  differs from that note and from the last one it ran on, and notes it, pass or fail. So a turn
-  that changed nothing runs nothing, and neither does the work in progress that the session
-  started on.
-- A failure goes back to Claude, with each target that failed, then the end of the output. Claude
-  goes on once, then may stop. The failure is reported once: make runs again where the tree
-  changes. In a directory of another repository, the hook does nothing.
+- After each Edit or Write, `make lint-file FILES=PATH` runs the gates of the file's type on that
+  file, as `make lint-local` runs them, zizmor offline. Then a shell script's checks, the size
+  caps, `gitleaks dir` and `tools/denycheck` read it, whatever its type. A change made through
+  Bash, as `sed -i` or `gofmt -w`, waits for the end of the turn.
+- As Claude ends its turn, `make -k lint-tree`, which is `lint-local`, runs in each work tree that
+  Claude wrote, linked ones included. In the project's own, it runs where the tree changed since
+  the session started and since the last run, as the plugin notes in its data directory.
+- A failure goes back to Claude, which goes on once, then may stop.
+- No gate runs in a tree where a commit since `origin/main` lacks its author's good signature,
+  where a change is staged, or where the gate code differs from `HEAD`. The gate code is the
+  plugin's, the Makefile and `tools/` among it, and what `.claude/lint-gates` adds. A Dependabot
+  branch checked out here gets a notice instead, as does an edit of the Makefile until a commit
+  takes it.
 
 ## A finding
 
@@ -147,9 +148,9 @@ A path prints each term it holds as `[term N]`:
   unseen. The tree's check finds it in the source, and #47's sweep with `strings` stays.
 - `-stdin NAME`: the input, as `NAME:LINE`.
 
-`make check`, `make lint` and `lint-file.sh` run it on the tree, and `make commits` on what the
-commits from `origin/main` add. Those targets run it as `DENYCHECK` says. CI's workflows set
-`DENYCHECK=true`, a command that does nothing, and run denycheck in steps of their own. So the
+`make check` and `make lint` run it on the tree, `make lint-file` on a file, and `make commits` on
+what the commits from `origin/main` add. Those targets run it as `DENYCHECK` says. CI's workflows
+set `DENYCHECK=true`, a command that does nothing, and run denycheck in steps of their own. So the
 secret `DENYLIST` reaches denycheck alone: no test, no tool and no module that a Dependabot pull
 request bumps sees it. CI's `pr-text` job runs it on a pull request's title, body and
 branch as they change. `release.yml` runs it on each file of the release and on its notes, before
@@ -288,7 +289,7 @@ Each file git tracks is a source, a doc, a config with its own check, or data:
 - `internal/files/testdata`: the files `Generate` must write, which its tests compare byte for
   byte.
 - `tools/notices.tmpl`: go-licenses reads it as `make notices` runs, in CI's `check` job.
-- `Makefile`, `.gitignore`, `.editorconfig`, `.claude/settings.json`, the issue forms in
-  `.github/ISSUE_TEMPLATE` and the licenses: data, or read by the tool they are for, GitHub for the
-  forms. `tests/tools` runs the Makefile's recipes that list files, and `tests/hooks` reads the
-  hooks that `settings.json` wires.
+- `Makefile`, `.gitignore`, `.editorconfig`, `.claude/settings.json`, `.claude/lint-gates`, the
+  issue forms in `.github/ISSUE_TEMPLATE` and the licenses: data, or read by the tool they are for,
+  GitHub for the forms. `tests/tools` runs the Makefile's recipes that list files, `lint-file`'s
+  among them.

@@ -31,11 +31,11 @@ gh pr comment N --body /ff
 
 A fork's branch may change `.claude/`, the Makefile, `tools/` and the tests, and Claude Code runs
 some of them unasked. `.claude/settings.json` lets Claude run `git`, `make`, `go` and `docker run`
-without asking. Its SessionStart hook runs the checked-out `lint-branch.sh` as soon as Claude Code
-opens. After each edit, `lint-file.sh` runs `tools/run`, `go run ./tools/sizecheck` and
-`go run ./tools/denycheck`, and as a turn ends, `lint-branch.sh` runs `make -k lint-local`. A clone
-with the fork's branch checked out loads the fork's settings and hooks, so another clone alone
-keeps none of that from running.
+without asking, and a fork's may wire hooks or enable plugins of its own. The lint plugin's hooks
+come from the plugin, not the checkout. They run the checkout's `make lint-file` and
+`make lint-tree`, but only in a tree the maintainer vouches for, so a fork's commits run no gate
+([Claude Code's hooks](checks.md#claude-codes-hooks)). A clone with the fork's branch checked out
+loads the fork's settings, so another clone alone keeps none of that from running.
 
 So read the diff first, `gh pr diff N`, `.claude/` and the Makefile above all. Check the fork's
 branch out only where Claude Code isn't running, or in a container. CI runs it on GitHub's runners,

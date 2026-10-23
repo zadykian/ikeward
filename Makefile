@@ -53,7 +53,8 @@ lint: vet golangci-lint sizecheck vale lychee rumdl govulncheck licenses actionl
 	gitleaks denycheck commits
 
 # The gates of lint whose findings change with the tree alone, not with the date or the network:
-# all but govulncheck, with zizmor offline. Claude Code's Stop hook runs it (docs/checks.md).
+# all but govulncheck, with zizmor offline. The lint plugin's Stop hook runs it, through lint-tree
+# (docs/checks.md).
 lint-local: ZIZMOR_FLAGS = --offline
 lint-local: vet golangci-lint sizecheck vale lychee rumdl licenses actionlint zizmor gitleaks \
 	denycheck commits

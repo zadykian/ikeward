@@ -86,45 +86,5 @@
     "flow@zadykian": true,
     "docs@zadykian": true,
     "lint@zadykian": true
-  },
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup|resume|clear",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/lint-branch.sh",
-            "args": [],
-            "statusMessage": "Noting the work tree"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/lint-file.sh",
-            "args": [],
-            "statusMessage": "Linting the file"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/lint-branch.sh",
-            "args": [],
-            "statusMessage": "Running make lint-local"
-          }
-        ]
-      }
-    ]
   }
 }

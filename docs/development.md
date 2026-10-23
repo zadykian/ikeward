@@ -7,7 +7,7 @@ install ikeward and run its commands.
 ```sh
 make check                    # shellcheck, shfmt, gofmt, go vet, golangci-lint, denycheck, tests
 make lint                     # every gate, as CI's lint job runs them (checks.md)
-make lint-local               # all but govulncheck, zizmor offline, as Claude's Stop hook runs
+make lint-local               # all but govulncheck, zizmor offline, as the lint plugin runs it
 make vale FILES=README.md     # one gate, on the files named
 make test                     # go test -count=1 ./...
 go test -count=1 -run 'TestVersion$' ./cmd/ikeward   # a single test

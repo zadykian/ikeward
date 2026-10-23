@@ -32,8 +32,8 @@ documentation ranges and `example.test`. Replace the real ones in a log before y
 - Prose follows [the writing policy](.claude/rules/writing.md): sentences of 30 words at most, lines
   of 100 columns, and files of 300 lines.
 
-With Claude Code, `CLAUDE.md` and `.claude/` give Claude the same rules, and its hooks run the gates
-as it works.
+With Claude Code, `CLAUDE.md`, `.claude/` and the skills of [zadykian/skills][skills] give Claude
+the same rules. That marketplace's lint plugin runs the gates as Claude works.
 
 ## Landing
 
@@ -54,4 +54,5 @@ ikeward is under the [MIT license](LICENSE). A contribution is under it too.
 [sig]: https://docs.github.com/authentication/managing-commit-signature-verification/signing-commits
 [commits]: https://www.conventionalcommits.org/en/v1.0.0/
 [atomic]: https://github.com/zadykian/skills/blob/main/skills/atomic-commits/SKILL.md
+[skills]: https://github.com/zadykian/skills
 [covenant]: https://www.contributor-covenant.org/version/2/1/code_of_conduct/

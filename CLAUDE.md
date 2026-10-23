@@ -126,16 +126,18 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
   `make build` and `make notices` make, once denycheck reads it. `pr-text.yml` runs denycheck on
   a pull request's title, body and branch, and `history.yml` runs `make history` each week.
   `.github/dependabot.yml` asks for the modules' and the actions' updates each month.
-- `.claude/`: Claude's rules, agent and hooks, as [Where else to look](#where-else-to-look) lists
-  them. `settings.json` holds the permissions and wires the hooks. It enables `flow`, `docs` and
-  `lint`, the bundles of the marketplace [zadykian/skills](https://github.com/zadykian/skills).
+- `.claude/`: Claude's rules and agent, as [Where else to look](#where-else-to-look) lists them.
+  `settings.json` holds the permissions, and enables `flow`, `docs` and `lint`, the bundles of the
+  marketplace [zadykian/skills](https://github.com/zadykian/skills). `lint-gates` adds to the lint
+  plugin's gate code.
 
 ## Commands
 
 ```sh
 make check                    # shellcheck, shfmt, gofmt, go vet, golangci-lint, denycheck, tests
 make lint                     # every gate, as CI's lint job runs them (docs/checks.md)
-make lint-local               # all but govulncheck, zizmor offline: what the Stop hook runs
+make lint-local               # all but govulncheck, zizmor offline: the lint plugin's lint-tree
+make lint-file FILES=a.go     # a file's gates, as the lint plugin runs them after an edit
 make vale FILES=README.md     # one gate alone; sizecheck, vale, lychee and rumdl take FILES
 make govulncheck              # any other gate alone, on the whole tree, as make lint lists them
 make test                     # go test -count=1 ./..., with Vale, gitleaks and shfmt from tools/run
@@ -275,8 +277,8 @@ Review checks the rest:
   every fact and link.
 - The marketplace's skills, which ikeward uses as they are: `/flow:issue` plans and files an issue.
   `/flow:land`, run by hand only, lands a stack by `/ff`.
-- `.claude/hooks/`: after each Edit or Write, `lint-file.sh` runs the gates of the file's type, and
-  gitleaks and denycheck on any file.
-  `lint-branch.sh` notes the work tree as a session starts. As a turn ends, it runs
-  `make -k lint-local` where the work tree changed since that note and since its last run, pass or
-  fail ([Claude Code's hooks](docs/checks.md#claude-codes-hooks)).
+- The lint plugin: after each Edit or Write, `make lint-file` runs the gates of the file's type,
+  and gitleaks and denycheck on any file. As a turn ends, `make lint-tree`, which is `lint-local`,
+  runs where the work tree changed. No gate runs in a tree with a commit that lacks its author's
+  signature, or with gate code unlike `HEAD`'s, as `.claude/lint-gates` adds to it
+  ([Claude Code's hooks](docs/checks.md#claude-codes-hooks)).
