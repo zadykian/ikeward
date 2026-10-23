@@ -44,7 +44,8 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
 - `internal/files/testdata` holds the files `Generate` must write, compared byte for byte.
   `go test ./internal/files -update` rewrites them.
 - The command line's tests check each exit status. A mistake on the command line exits 2, a
-  failure of the watchdog's own 3, and any other error 1.
+  failure of the watchdog's own 3, a change that `install --exit-code` reports 4, and any other
+  error 1.
 
 ## Where a test goes
 
@@ -57,13 +58,14 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
   their `TestMain` and `TestRunErrors`, a test of `run`.
 - `cmd/ikeward`: `main_test.go`, the version, the help, mistakes and exit statuses.
   `install_test.go`, install, its dry run, its errors, and its refusal to run as another program.
+  `steps_test.go`, install again: the steps due, `--all-steps`, and `--exit-code`'s statuses.
   `flags_test.go`, install's flags, their mistakes, and the floors that hold the VPN server's
   address. `password_test.go`, the `.p12`'s password. `status_test.go`, `watchdog_test.go`,
   `updown_test.go` and `routing_test.go` cover their commands, and `fake_test.go` the fake system.
   `helpers_test.go` writes the profile's files, gives install's arguments, and reads what it wrote.
 - `internal/install`: `install_test.go`, a run, again and with changes; `half_way_test.go`, a stop
-  half way, the journal and the rerun. `steps_test.go`, the steps due by the files they read;
-  `probe_test.go`, each probe making its step due. `dry_run_test.go`, `--dry-run`;
+  half way, the journal and the rerun. `steps_test.go`, the steps due by the files they read, and
+  `AllSteps`; `probe_test.go`, each probe making its step due. `dry_run_test.go`, `--dry-run`;
   `failures_test.go`, failed commands, the journal's errors and output; `uninstall_test.go`,
   `uninstall`; `diff_test.go`, the diffs.
 - `internal/updown`: `updown_test.go`, `Run` as the tunnel goes up, the ranges it learns or
@@ -92,10 +94,11 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
   `TestGitleaks`, which runs `make gitleaks`, in `profilecheck_test.go`. `makefile_test.go` covers
   the Makefile's recipes and `tools/run -path`, and `lint_file_test.go` `make lint-file`.
 - `tests/integration`: `integration_test.go`, the steps' order and the install, tunnel, resolver,
-  resolver's probe and uninstall steps. `names_test.go`, the names with strongSwan stopped and
-  without `ikeward0`'s own address; `nat_test.go`, the NAT steps and their probe;
-  `watchdog_test.go`, the watchdog's.
+  resolver's probe and uninstall steps. `again_test.go`, install again: a dry run that plans
+  nothing, every step due, and the watchdog's timer disabled by hand, each with `--exit-code`.
+  `names_test.go`, the names with strongSwan stopped and without `ikeward0`'s own address;
+  `nat_test.go`, the NAT steps and their probe; `watchdog_test.go`, the watchdog's.
   `ranges_test.go`, the ranges learned; `refused_test.go`, the grants refused; `floor_test.go`,
   the LAN's and the floors' steps, and their probe; `reboot_test.go`, the reboot.
-  `stack_test.go`, the Compose stack; `helpers_test.go`, the install, waits and reads the steps
-  share.
+  `stack_test.go`, the Compose stack; `helpers_test.go`, the install, its exit status, and the
+  waits and reads the steps share.

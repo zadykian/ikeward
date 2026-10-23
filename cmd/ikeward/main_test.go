@@ -140,12 +140,25 @@ func TestMistakes(t *testing.T) {
 	}
 }
 
+// Each error has its exit status, and main prints each but a changedError, which is no failure.
 func TestExitStatus(t *testing.T) {
-	if got := exitStatus(errors.New("failed")); got != 1 {
-		t.Errorf("an error: exit status %d, want 1", got)
-	}
-	if got := exitStatus(usageError{errors.New("mistaken"), commandLine(system{})}); got != 2 {
-		t.Errorf("a mistake on the command line: exit status %d, want 2", got)
+	for _, test := range []struct {
+		err     error
+		status  int
+		message string
+	}{
+		{errors.New("failed"), 1, "ikeward: failed\n"},
+		{usageError{errors.New("mistaken"), commandLine(system{})}, 2,
+			"ikeward: mistaken (see ikeward --help)\n"},
+		{watchdogError{errors.New("cannot restart")}, 3, "ikeward: cannot restart\n"},
+		{changedError{}, 4, ""},
+	} {
+		if got := exitStatus(test.err); got != test.status {
+			t.Errorf("%v: exit status %d, want %d", test.err, got, test.status)
+		}
+		if got := message(test.err); got != test.message {
+			t.Errorf("%v: main prints %q, want %q", test.err, got, test.message)
+		}
 	}
 }
 

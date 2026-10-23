@@ -2,7 +2,9 @@ package integration
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -30,15 +32,32 @@ const (
 )
 
 // installWith runs ikeward install as install does, with the remote network's values, and args too.
+// It ends the test where install fails.
 func (s *stack) installWith(t *testing.T, args ...string) {
+	t.Helper()
+	if _, code := s.installExit(t, args...); code != 0 {
+		t.Fatalf("install exits %d", code)
+	}
+}
+
+// installExit runs ikeward install as installWith does, and returns what it printed and its exit
+// status. It ends the test where install did not run to an exit status.
+func (s *stack) installExit(t *testing.T, args ...string) (string, int) {
 	t.Helper()
 	out, err := s.run(t, password+"\n", append([]string{files.Binary, "install", "--p12",
 		clientP12, "--sswan", clientSSwan, "--dns", resolver, "--domain", domain, "--floor", given,
 		"--floor", aroundRemote}, args...)...)
-	t.Log(out)
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Log(out)
+		return out, 0
 	}
+	// The error holds what install printed, on stdout and stderr.
+	t.Log(err)
+	var exit *exec.ExitError
+	if !errors.As(err, &exit) {
+		t.Fatal("install did not run to an exit status")
+	}
+	return out, exit.ExitCode()
 }
 
 // The ranges the VPN server grants: the remote network, where the far host is the resolver, and a

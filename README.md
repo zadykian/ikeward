@@ -71,8 +71,8 @@ ikeward install --p12 vpnclient.p12 --sswan vpnclient.sswan --dns 10.88.0.53 \
 tunnel. `--probe` is a name for `status` to ask it, the first domain by default. Each `--floor` is a
 range kept off the uplink from the first boot on, before the tunnel ever came up. `install`
 installs strongSwan's packages, writes the files that differ, then takes up what changed and mends
-what it finds amiss. Run it again to change a value, with `--dry-run` first to see what changes.
-Each command's `--help` says the rest. The other commands run as root too:
+what it finds amiss. Run it again to change a value, `--dry-run` first; `--exit-code` exits 4 where
+anything changes. Each command's `--help` says the rest. The other commands run as root too:
 
 ```sh
 ikeward status                              # the watchdog's checks, a line each; changes nothing

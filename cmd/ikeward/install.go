@@ -87,65 +87,95 @@ forwarding: the server's firewall decides which networks reach the remote
 network, as ufw route allow in on wg0 out on ` + files.Link + ` does.
 
 --dry-run prints what install would change and run, the files as unified diffs
-but for those only root may read, and changes nothing.`
+but for those only root may read, and changes nothing.
+
+--all-steps takes every step, due or not, as earlier versions did. It is for a
+change no probe sees, such as a connection loaded by hand under the same name.
+
+--exit-code has install exit 4 where it installed a package, wrote or removed
+a file, or took a step, or in a dry run would, and 0 where it changed nothing.
+Without it, install exits 0 where it succeeds. Either way, it exits 1 where it
+fails, and 2 for a mistake on the command line.`
 
 // changesSettings is what install and uninstall do that calls for root.
 const changesSettings = "changes the system's settings"
 
+// installFlags are install's flags: the profile's files, the remote network's values, and how
+// install runs.
+type installFlags struct {
+	named                      profileFlags
+	given                      flags
+	dryRun, allSteps, exitCode bool
+}
+
 // newInstall is ikeward install.
 func newInstall(sys system) *cobra.Command {
-	var named profileFlags
-	var given flags
-	var dryRun bool
+	var f installFlags
 	command := &cobra.Command{
 		Use: "install --p12 FILE --sswan FILE [--mobileconfig FILE] --dns ADDR\n" +
-			"      --domain NAME... [--probe NAME] [--floor CIDR]... [--dry-run]",
+			"      --domain NAME... [--probe NAME] [--floor CIDR]... [--dry-run]\n" +
+			"      [--all-steps] [--exit-code]",
 		Short:                 "Install the VPN from the client profile",
 		Long:                  installLong,
 		Args:                  noArgs,
 		DisableFlagsInUseLine: true,
 		RunE: func(command *cobra.Command, _ []string) error {
-			if named.p12 == "" || named.sswan == "" {
-				return usageError{errors.New("install needs --p12 FILE and --sswan FILE"), command}
+			changed, err := sys.install(command, f)
+			if err == nil && changed && f.exitCode {
+				return changedError{}
 			}
-			settings, err := given.settings()
-			if err != nil {
-				return usageError{err, command}
-			}
-			if err := sys.asRoot("install", changesSettings); err != nil {
-				return err
-			}
-			if err := sys.asBinary(command.OutOrStdout(), dryRun); err != nil {
-				return err
-			}
-			read, err := named.read()
-			if err != nil {
-				return err
-			}
-			p, err := profile.Parse(read, sys.password)
-			if err != nil {
-				return err
-			}
-			if err := sys.clearOfServer(command, p.Server, settings.Floors); err != nil {
-				return err
-			}
-			_, err = sys.installer(command, dryRun).Install(command.Context(), p, settings)
 			return err
 		},
 	}
-	command.Flags().StringVar(&named.p12, "p12", "", "the client profile's .p12 `FILE`")
-	command.Flags().StringVar(&named.sswan, "sswan", "", "the client profile's .sswan `FILE`")
-	command.Flags().StringVar(&named.mobileconfig, "mobileconfig", "",
+	command.Flags().StringVar(&f.named.p12, "p12", "", "the client profile's .p12 `FILE`")
+	command.Flags().StringVar(&f.named.sswan, "sswan", "", "the client profile's .sswan `FILE`")
+	command.Flags().StringVar(&f.named.mobileconfig, "mobileconfig", "",
 		"the client profile's .mobileconfig `FILE`, for its CA")
-	command.Flags().StringVar(&given.dns, "dns", "", "the remote network's resolver, an IPv4 `ADDR`")
-	command.Flags().StringArrayVar(&given.domains, "domain", nil,
+	command.Flags().StringVar(&f.given.dns, "dns", "",
+		"the remote network's resolver, an IPv4 `ADDR`")
+	command.Flags().StringArrayVar(&f.given.domains, "domain", nil,
 		"a domain `NAME` of the remote network's, once for each")
-	command.Flags().StringVar(&given.probe, "probe", "",
+	command.Flags().StringVar(&f.given.probe, "probe", "",
 		"a `NAME` the resolver answers (default the first --domain)")
-	command.Flags().StringArrayVar(&given.floors, "floor", nil,
+	command.Flags().StringArrayVar(&f.given.floors, "floor", nil,
 		"a `CIDR` kept off the uplink from boot on, once for each")
-	command.Flags().BoolVar(&dryRun, "dry-run", false, "print the changes, and change nothing")
+	command.Flags().BoolVar(&f.dryRun, "dry-run", false, "print the changes, and change nothing")
+	command.Flags().BoolVar(&f.allSteps, "all-steps", false, "take every step, due or not")
+	command.Flags().BoolVar(&f.exitCode, "exit-code", false,
+		"exit 4 where install changed the system, or would")
 	return command
+}
+
+// install installs the VPN as f asks, on command's output. It returns whether it changed the
+// system, or in a dry run would.
+func (s system) install(command *cobra.Command, f installFlags) (bool, error) {
+	if f.named.p12 == "" || f.named.sswan == "" {
+		return false, usageError{errors.New("install needs --p12 FILE and --sswan FILE"), command}
+	}
+	settings, err := f.given.settings()
+	if err != nil {
+		return false, usageError{err, command}
+	}
+	if err := s.asRoot("install", changesSettings); err != nil {
+		return false, err
+	}
+	if err := s.asBinary(command.OutOrStdout(), f.dryRun); err != nil {
+		return false, err
+	}
+	read, err := f.named.read()
+	if err != nil {
+		return false, err
+	}
+	p, err := profile.Parse(read, s.password)
+	if err != nil {
+		return false, err
+	}
+	if err := s.clearOfServer(command, p.Server, settings.Floors); err != nil {
+		return false, err
+	}
+	in := s.installer(command, f.dryRun)
+	in.AllSteps = f.allSteps
+	return in.Install(command.Context(), p, settings)
 }
 
 // installer is install's and uninstall's view of sys, saying what they do on command's output.

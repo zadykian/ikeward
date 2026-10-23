@@ -66,11 +66,14 @@ type plan []*due
 const owedWhy = "an earlier install stopped before it ended"
 
 // plan works out the steps due: those owed names, those that read a file of changed, and those
-// whose probe finds that the system needs them.
-func (System) plan(p *probes, changed []string, owed owed) plan {
+// whose probe finds that the system needs them. With AllSteps, every other step is due too.
+func (s System) plan(p *probes, changed []string, owed owed) plan {
 	out := make(plan, len(steps))
 	for i, st := range steps {
 		out[i] = st.due(p, changed, owed)
+		if out[i] == nil && s.AllSteps {
+			out[i] = &due{why: "--all-steps asks"}
+		}
 	}
 	return out
 }

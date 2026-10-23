@@ -115,6 +115,8 @@ type System struct {
 	Out io.Writer
 	// DryRun has them say what they would do, and do nothing that changes the system.
 	DryRun bool
+	// AllSteps has install take every step, as a change no probe sees may call for.
+	AllSteps bool
 }
 
 // printer writes to w, keeping the first error: a failed write stops nothing half done, and the

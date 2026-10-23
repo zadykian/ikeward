@@ -48,6 +48,9 @@ client with that profile, the host as its resolver and `example.test` as its dom
   220, and another there that charon doesn't own. Then networkd makes `ikeward0`, an XFRM interface
   with the interface ID the SAs' policies take;
 - the tunnel comes up, and every check of `status` passes;
+- `install` run again plans nothing, and `--exit-code` exits 0. With `--all-steps`, it plans all
+  seven steps and exits 4. With the watchdog's timer disabled by hand, it plans and runs the step
+  that enables it alone, and exits 4;
 - `updown` routes both ranges through `ikeward0`, makes their floors and records them. The routing's
   unit made the floors of `--floor` alone before the tunnel first came up;
 - resolved sends a `*.example.test` lookup to the remote resolver, through the tunnel, and no

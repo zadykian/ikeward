@@ -179,7 +179,7 @@ Each rule links where its reason lives: a docs page, a comment or a CI job.
 - Only `main` exits: every error carries up to it ([main.go](cmd/ikeward/main.go),
   [the watchdog](docs/status.md#the-watchdog)). A mistake on the command line exits 2, a
   failure of the watchdog's own 3, which its service, unlike 1, counts as a failure; any other
-  error 1.
+  error 1. A change that `install --exit-code` reports exits 4, and `main` prints nothing of it.
 - `CGO_ENABLED=0`, for linux/amd64 and linux/arm64 (the [Makefile](Makefile)'s `build`).
 - `make build`'s names, `ikeward-linux-ARCH` and `ikeward.sha256`, change only together with
   `install.sh`, which relies on them; `install.sh` keeps its name, which the README's install
