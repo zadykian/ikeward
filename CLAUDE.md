@@ -126,9 +126,9 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
   `make build` and `make notices` make, once denycheck reads it. `pr-text.yml` runs denycheck on
   a pull request's title, body and branch, and `history.yml` runs `make history` each week.
   `.github/dependabot.yml` asks for the modules' and the actions' updates each month.
-- `.claude/`: Claude's rules, agent, skills and hooks, as [Where else to look](#where-else-to-look)
-  lists them. `settings.json` holds the permissions and wires the hooks. It enables `flow`, `docs`
-  and `lint`, the bundles of the marketplace [zadykian/skills](https://github.com/zadykian/skills).
+- `.claude/`: Claude's rules, agent and hooks, as [Where else to look](#where-else-to-look) lists
+  them. `settings.json` holds the permissions and wires the hooks. It enables `flow`, `docs` and
+  `lint`, the bundles of the marketplace [zadykian/skills](https://github.com/zadykian/skills).
 
 ## Commands
 
@@ -269,9 +269,8 @@ Review checks the rest:
   [tests.md](.claude/rules/tests.md).
 - `.claude/agents/doc-editor.md`: rewrites prose to the writing policy and Vale's rules, keeping
   every fact and link.
-- `.claude/skills/`: `issue`, which plans and files an issue.
-- The marketplace's skills, which ikeward uses as they are: `/flow:land`, run by hand only, lands a
-  stack by `/ff`.
+- The marketplace's skills, which ikeward uses as they are: `/flow:issue` plans and files an issue.
+  `/flow:land`, run by hand only, lands a stack by `/ff`.
 - `.claude/hooks/`: after each Edit or Write, `lint-file.sh` runs the gates of the file's type, and
   gitleaks and denycheck on any file.
   `lint-branch.sh` notes the work tree as a session starts. As a turn ends, it runs
