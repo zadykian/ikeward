@@ -274,7 +274,8 @@ Review checks the rest:
 - `.claude/agents/doc-editor.md`: rewrites prose to the writing policy and Vale's rules, keeping
   every fact and link.
 - The marketplace's skills, which ikeward uses as they are: `/flow:issue` plans and files an issue.
-  `/flow:land`, run by hand only, lands a stack by `/ff`.
+  `/flow:land`, run by hand only, lands a stack by `/ff`. `/docs:trim` trims comments and docs to
+  the policy. `/lint:split-file` splits a file over its cap.
 - The lint plugin: after each Edit or Write, `make lint-file` runs the gates of the file's type,
   and gitleaks and denycheck on any file. As a turn ends, `make lint-tree`, which is `lint-local`,
   runs where the work tree changed. No gate runs in a tree with a commit that lacks its author's
