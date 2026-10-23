@@ -1,0 +1,7 @@
+# The gate code beyond the lint plugin's defaults, which no gate runs while it differs from HEAD.
+# golangci-lint's config may load a plugin, a shared object. go.mod and a go.work pick the
+# toolchain that go run downloads and runs, and a go.work may swap the modules it builds.
+.golangci.*
+go.mod
+go.work
+go.work.sum
