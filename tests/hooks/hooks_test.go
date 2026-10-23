@@ -99,7 +99,7 @@ func newWorld(t *testing.T) *world {
 		".claude/plans/plan.md":   "# Plan\n",
 	}
 	write(t, w.repo, files)
-	for _, hook := range []string{"lint-file.sh", "lint-branch.sh"} {
+	for _, hook := range []string{"lint-branch.sh"} {
 		src, err := os.ReadFile(filepath.Join("..", "..", ".claude", "hooks", hook))
 		if err != nil {
 			t.Fatal(err)
