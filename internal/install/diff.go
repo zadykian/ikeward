@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// context is how many unchanged lines a hunk shows around a change, as diff -u does.
-const context = 3
+// contextLines is how many unchanged lines a hunk shows around a change, as diff -u does.
+const contextLines = 3
 
 // edit is a line of a diff: kept (' '), removed ('-') or added ('+').
 type edit struct {
@@ -31,7 +31,7 @@ func unified(from, to string, old, new []byte) string {
 			continue
 		}
 		// The hunk starts with the kept lines before its first change, which are counted.
-		start, end := max(0, i-context), hunkEnd(edits, i)
+		start, end := max(0, i-contextLines), hunkEnd(edits, i)
 		oldStart, newStart := oldLine-(i-start), newLine-(i-start)
 		oldCount, newCount := 0, 0
 		for _, e := range edits[start:end] {
@@ -56,7 +56,7 @@ func unified(from, to string, old, new []byte) string {
 }
 
 // hunkEnd is the end of the hunk whose first change is edits[i]. Changes join it while fewer than
-// twice context kept lines part them, and context kept lines follow the last.
+// twice contextLines kept lines part them, and contextLines kept lines follow the last.
 func hunkEnd(edits []edit, i int) int {
 	for {
 		for i < len(edits) && edits[i].kind != ' ' {
@@ -66,8 +66,8 @@ func hunkEnd(edits []edit, i int) int {
 		for kept < len(edits) && edits[kept].kind == ' ' {
 			kept++
 		}
-		if kept == len(edits) || kept-i > 2*context {
-			return min(i+context, len(edits))
+		if kept == len(edits) || kept-i > 2*contextLines {
+			return min(i+contextLines, len(edits))
 		}
 		i = kept
 	}

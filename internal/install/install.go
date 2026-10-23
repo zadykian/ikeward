@@ -9,6 +9,7 @@
 package install
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -81,6 +82,22 @@ type Network interface {
 	RemoveRule(rule routing.Rule) error
 	// RemoveRoutes removes every IPv4 route in table, and returns how many it removed.
 	RemoveRoutes(table int) (int, error)
+}
+
+// Charon is strongSwan's daemon, which VICI reaches. Install reads what it loaded.
+type Charon interface {
+	// HasConn is whether charon has loaded the connection named name.
+	HasConn(ctx context.Context, name string) (bool, error)
+	// Certs returns the X.509 certificates charon holds.
+	Certs(ctx context.Context) ([]Cert, error)
+}
+
+// Cert is an X.509 certificate that charon holds.
+type Cert struct {
+	// DER is the certificate, as DER encodes it.
+	DER []byte
+	// CA is whether charon holds it as a CA's, and Key whether it holds its private key.
+	CA, Key bool
 }
 
 // System is what install and uninstall change.

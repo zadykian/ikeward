@@ -25,11 +25,6 @@ type VICI struct {
 
 // IKESAs returns the IKE SAs of the connection named conn, as charon lists them.
 func (v VICI) IKESAs(ctx context.Context, conn string) ([]status.IKESA, error) {
-	session, err := vici.NewSession(vici.WithSocketPath(v.Socket))
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", v.Socket, reason(err))
-	}
-	defer session.Close() //nolint:errcheck // read only: closing loses nothing
 	in := vici.NewMessage()
 	if err := in.Set("ike", conn); err != nil {
 		return nil, err
@@ -39,7 +34,20 @@ func (v VICI) IKESAs(ctx context.Context, conn string) ([]status.IKESA, error) {
 			return nil, err
 		}
 	}
-	return ikeSAs(session.CallStreaming(ctx, "list-sas", "list-sa", in))
+	return stream(ctx, v.Socket, "list-sas", "list-sa", in, ikeSAs)
+}
+
+// stream sends charon the command cmd with in, and reads with read the events named event that
+// charon streams in answer.
+func stream[T any](ctx context.Context, socket, cmd, event string, in *vici.Message,
+	read func(iter.Seq2[*vici.Message, error]) (T, error)) (T, error) {
+	session, err := vici.NewSession(vici.WithSocketPath(socket))
+	if err != nil {
+		var none T
+		return none, fmt.Errorf("%s: %w", socket, reason(err))
+	}
+	defer session.Close() //nolint:errcheck // read only: closing loses nothing
+	return read(session.CallStreaming(ctx, cmd, event, in))
 }
 
 // viciIKESA is what ikeSAs reads of an IKE SA in a list-sa event.
