@@ -100,8 +100,6 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
 - `tests/installer`: `install.sh` piped into `sh` and `bash`, and the README's install commands,
   with a fake `curl` serving test releases and fakes of `uname`, `id` and `less`. It installs into
   a temporary directory through `IKEWARD_INSTALL_DIR`. Part of `make test`.
-- `tests/hooks`: Claude Code's hooks, fed its JSON in a scratch repository, with fakes of `make`,
-  `go`, `gofmt`, `tools/run` and `tools/valecheck`. Part of `make test`.
 - `install.sh`: POSIX sh, published with each release; the README's install commands pipe it
   from `curl` into `sh`. It downloads from the release `IKEWARD_VERSION` names, or the latest, found
   once. It installs the machine's binary as `/usr/local/sbin/ikeward`, checked against

@@ -13,7 +13,6 @@ make test                     # go test -count=1 ./...
 go test -count=1 -run 'TestVersion$' ./cmd/ikeward   # a single test
 go test -count=1 ./tests/installer                  # install.sh, in sh and bash, with a fake curl
 go test -count=1 ./tests/tools                      # the gates' scripts, in scratch repositories
-go test -count=1 ./tests/hooks                      # Claude Code's hooks, with fakes of the tools
 make build VERSION=X.Y.Z      # in dist: ikeward-linux-amd64 and -arm64, static, stamped X.Y.Z,
                               #   ikeward.sha256 and install.sh, as a release publishes them
 make notices                  # dist/third-party-notices.txt, the licenses of what a build holds

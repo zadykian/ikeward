@@ -27,8 +27,6 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
   `/usr/local/sbin`. A fake `curl`, `uname`, `id` and `less` stand in, and the `PATH` holds nothing
   else but the tools the script runs. The fake `curl` serves the test's releases and writes only
   into the test's directory, so no test reaches the network.
-- `tests/hooks` runs Claude Code's hooks in a repository of the test's. Its `PATH` holds fakes of
-  `make`, `go` and `gofmt`, and the tools the hooks run, so no gate runs.
 - `tests/integration` runs only in containers, and only where `IKEWARD_INTEGRATION` is set, as
   `make integration` sets it. `make test` skips it.
 - The integration test's client is privileged. Its image masks every unit that would reach the
@@ -55,8 +53,8 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
   share go in `fake_test.go` or `helpers_test.go`, with no test in them. Some packages name that
   file for what it builds: `fixture_test.go` in `internal/profile`, `installer_test.go` in
   `tests/installer`, and `stack_test.go` in `tests/integration`. `tests/tools` keeps them in
-  `tools_test.go`, and `tests/hooks` in `hooks_test.go`. `tools/sizecheck` and `tools/denycheck`
-  keep them in `main_test.go`, beside their `TestMain` and `TestRunErrors`, a test of `run`.
+  `tools_test.go`. `tools/sizecheck` and `tools/denycheck` keep them in `main_test.go`, beside
+  their `TestMain` and `TestRunErrors`, a test of `run`.
 - `cmd/ikeward`: `main_test.go`, the version, the help, mistakes and exit statuses.
   `install_test.go`, install, its dry run, its errors, and its refusal to run as another program.
   `flags_test.go`, install's flags, their mistakes, and the floors that hold the VPN server's
@@ -91,7 +89,6 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
 - `tests/tools`: a file per script of `tools/` but `run`, as `commitcheck_test.go`, and
   `TestGitleaks`, which runs `make gitleaks`, in `profilecheck_test.go`. `makefile_test.go` covers
   the Makefile's recipes and `tools/run -path`, and `lint_file_test.go` `make lint-file`.
-  `tests/hooks`: `lint_branch_test.go`, the Stop hook.
 - `tests/integration`: `integration_test.go`, the steps' order and the install, tunnel, resolver,
   resolver's probe and uninstall steps. `names_test.go`, the names with strongSwan stopped and
   without `ikeward0`'s own address; `nat_test.go`, the NAT steps and their probe;
