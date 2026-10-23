@@ -60,7 +60,7 @@ func TestInstallErrors(t *testing.T) {
 			if test.setUp != nil {
 				test.setUp(f, r)
 			}
-			err := onHome(f, r, &bytes.Buffer{}).Install(test.p, settings)
+			_, err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), test.p, settings)
 			if err == nil || err.Error() != test.want {
 				t.Errorf("Install: %v, want %s", err, test.want)
 			}
@@ -68,29 +68,42 @@ func TestInstallErrors(t *testing.T) {
 	}
 }
 
-// install fails where it cannot read, write or remove Pending, or where Pending names a unit but
-// networkd's and strongSwan's.
-func TestInstallPendingErrors(t *testing.T) {
+// install fails where it cannot read Journal or Pending, or write or remove Journal. Or where
+// Journal lists other than a step's command, or Pending a unit but networkd's and strongSwan's.
+func TestInstallJournalErrors(t *testing.T) {
 	for _, test := range []struct {
 		name  string
 		setUp func(*fakeFiles)
 		want  string
 	}{
-		{"unread", func(f *fakeFiles) { f.failRead[Pending] = fs.ErrPermission },
-			"cannot read " + Pending + ": permission denied"},
+		{"unread", func(f *fakeFiles) { f.failRead[Journal] = fs.ErrPermission },
+			"cannot read " + Journal + ": permission denied"},
 		{"wrong", func(f *fakeFiles) {
+			f.files[Journal] = file{[]byte("# comment\n\nnetworkctl reload\nreboot\n"), 0o644}
+		}, Journal + `: line 4: "reboot" is not a command of install's steps`},
+		{"unwritten", func(f *fakeFiles) { f.failWrite[Journal] = errors.New("failed") },
+			"cannot write " + Journal + ": failed"},
+		{"unremoved", func(f *fakeFiles) { f.failRemove[Journal] = fs.ErrPermission },
+			"cannot remove " + Journal + ": permission denied"},
+		{"empty, unremoved", func(f *fakeFiles) {
+			f.files[Journal] = file{[]byte("# comment\n"), 0o644}
+			f.failRemove[Journal] = fs.ErrPermission
+		}, "cannot remove " + Journal + ": permission denied"},
+		{"Pending unread", func(f *fakeFiles) { f.failRead[Pending] = fs.ErrPermission },
+			"cannot read " + Pending + ": permission denied"},
+		{"Pending wrong", func(f *fakeFiles) {
 			f.files[Pending] = file{[]byte("# comment\n\nstrongswan.service\nssh.service\n"), 0o644}
 		}, Pending + `: line 4: "ssh.service" is not a daemon install restarts`},
-		{"unwritten", func(f *fakeFiles) { f.failWrite[Pending] = errors.New("failed") },
-			"cannot write " + Pending + ": failed"},
-		{"unremoved", func(f *fakeFiles) { f.failRemove[Pending] = fs.ErrPermission },
-			"cannot remove " + Pending + ": permission denied"},
+		{"Pending unremoved", func(f *fakeFiles) {
+			f.files[Pending] = file{pendingOf(StrongSwan), 0o644}
+			f.failRemove[Pending] = fs.ErrPermission
+		}, "cannot remove " + Pending + ": permission denied"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			f := newFakeFiles()
 			test.setUp(f)
-			err := System{Files: f, Runner: newFakeRunner(Packages...), Out: &bytes.Buffer{},
-				Network: home(), Tables: withNAT()}.Install(newProfile(t, "client"), settings)
+			_, err := onHome(f, newFakeRunner(Packages...), &bytes.Buffer{}).Install(t.Context(),
+				newProfile(t, "client"), settings)
 			if err == nil || err.Error() != test.want {
 				t.Errorf("Install: %v, want %s", err, test.want)
 			}
@@ -101,7 +114,7 @@ func TestInstallPendingErrors(t *testing.T) {
 // A failed write of the output fails install, but only once install is done.
 func TestInstallOutputFails(t *testing.T) {
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
-	err := onHome(f, r, failingWriter{}).Install(newProfile(t, "client"), settings)
+	_, err := onHome(f, r, failingWriter{}).Install(t.Context(), newProfile(t, "client"), settings)
 	if err == nil || err.Error() != "the pipe is closed" {
 		t.Errorf("Install: %v, want the write's error", err)
 	}
@@ -115,7 +128,7 @@ func TestInstallWrongSettings(t *testing.T) {
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
 	wrong := settings
 	wrong.Domains = nil
-	err := onHome(f, r, &bytes.Buffer{}).Install(newProfile(t, "client"), wrong)
+	_, err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), newProfile(t, "client"), wrong)
 	if err == nil || err.Error() != "cannot generate the files: no domain" {
 		t.Errorf("Install: %v, want Check's error", err)
 	}
@@ -150,7 +163,7 @@ func TestInstallUpdatesLists(t *testing.T) {
 			r := newFakeRunner("strongswan", "strongswan-swanctl", "libcharon-extra-plugins")
 			test.setUp(r)
 			var out bytes.Buffer
-			err := onHome(f, r, &out).Install(newProfile(t, "client"), settings)
+			_, err := onHome(f, r, &out).Install(t.Context(), newProfile(t, "client"), settings)
 			if (err == nil) != (test.want == "") || (err != nil && err.Error() != test.want) {
 				t.Fatalf("Install: %v, want %q", err, test.want)
 			}

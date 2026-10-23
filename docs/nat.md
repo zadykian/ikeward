@@ -172,7 +172,9 @@ remove Docker's and ufw's rules. Where it's enabled, the routing's unit runs aft
 flush comes before the table.
 
 networkd leaves the rules and the routes in table 220 alone, as `ManageForeignRoutes=no` and
-`ManageForeignRoutingPolicyRules=no` tell it. `install` restarts the unit before strongSwan starts.
+`ManageForeignRoutingPolicyRules=no` tell it. `install` restarts the unit before strongSwan starts,
+where the unit or the settings change, the unit isn't active, or the `rule`, `floor` or `NAT` check
+fails.
 
 Something may still remove them while the server runs, as `nft flush ruleset` removes the table.
 `status`'s `rule`, `floor` and `NAT` checks find each, and the watchdog makes it again within about

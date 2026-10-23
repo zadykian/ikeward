@@ -16,12 +16,12 @@ the routes of table 220, the floors among them. Remove the files that
 ` + install.Record + ` lists,
 ` + install.LastRestart + ` where the watchdog wrote it,
 ` + routing.Learned + ` where updown wrote it, and
-` + install.Pending + ` where an install left it, then reload
-systemd and networkd. Remove the link ` + files.Link + `, the tunnel's, last, as
-networkd removes no link as it reloads. The packages stay. Traffic to the
-remote network's ranges then leaves as on a server without ikeward. networkd
-keeps its own settings until it next starts, as it reads them only as it
-starts.
+` + install.Journal + ` and ` + install.Pending + `
+where an install left them, then reload systemd and networkd. Remove the link
+` + files.Link + `, the tunnel's, last, as networkd removes no link as it reloads.
+The packages stay. Traffic to the remote network's ranges then leaves as on a
+server without ikeward. networkd keeps its own settings until it next starts,
+as it reads them only as it starts.
 
 --dry-run prints what uninstall would remove and run, and changes nothing.`
 

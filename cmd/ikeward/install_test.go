@@ -46,8 +46,8 @@ func TestInstallCommand(t *testing.T) {
 		t.Errorf("the key's directory's mode is %04o, want 0700", got)
 	}
 	for _, want := range []string{"The profile gives:\n", "which has a password\n",
-		"Created /etc/swanctl/private/client-key.pem\n",
-		"Running swanctl --load-all --noprompt\n"} {
+		"Created /etc/swanctl/private/client-key.pem\n", "Created " + install.Record + "\n",
+		"Running swanctl --load-all --noprompt, as /etc/swanctl/conf.d/ikeward.conf changes\n"} {
 		if !strings.Contains(f.out.String(), want) {
 			t.Errorf("the output lacks %q:\n%s", want, f.out.String())
 		}

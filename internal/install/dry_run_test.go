@@ -6,15 +6,15 @@ import (
 	"testing"
 )
 
-// A dry run changes nothing, runs nothing but dpkg-query, and prints the files as diffs, but
-// for the key.
+// A dry run changes nothing, runs nothing but its queries, and prints the files as diffs, but
+// for the key. It says why each step is due, and that it would change the system.
 func TestInstallDryRun(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages[1:]...)
 	var out bytes.Buffer
-	if err := (System{Files: f, Runner: r, Out: &out, DryRun: true,
-		Network: home(), Tables: withNAT()}).Install(p, settings); err != nil {
-		t.Fatal(err)
+	changed, err := dryRunOn(f, r, &out).Install(t.Context(), p, settings)
+	if err != nil || !changed {
+		t.Fatalf("Install: %v, %v", changed, err)
 	}
 	if len(f.writes) > 0 || len(r.ran()) > 0 {
 		t.Errorf("wrote %q and ran %q", f.writes, r.ran())
@@ -29,8 +29,10 @@ func TestInstallDryRun(t *testing.T) {
 			"+# Written by ikeward install",
 		"Would create /etc/swanctl/private/client-key.pem, mode 0600, which only root may read: " +
 			"not shown\n",
-		"Would run systemctl restart strongswan.service\n",
-		"Would run systemctl start ikeward-watchdog.timer\n",
+		"Would create " + Record + "\n",
+		"Would run systemctl restart strongswan.service, as /etc/strongswan.d/zz-ikeward.conf " +
+			"changes\n",
+		"Would run systemctl start ikeward-watchdog.timer, as " + timer + " changes\n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the output lacks %q:\n%s", want, got)
@@ -41,15 +43,15 @@ func TestInstallDryRun(t *testing.T) {
 	}
 }
 
-// On a system with the VPN installed, a dry run shows what differs alone.
+// On a system with the VPN installed, a dry run shows what differs alone, and the step that reads
+// it.
 func TestInstallDryRunChanges(t *testing.T) {
 	p := newProfile(t, "client")
 	f := newFakeFiles()
-	if err := (System{Files: f, Runner: newFakeRunner(Packages...), Out: &bytes.Buffer{},
-		Network: home(), Tables: withNAT()}).Install(p, settings); err != nil {
+	if _, err := onHome(f, newFakeRunner(Packages...), &bytes.Buffer{}).Install(t.Context(), p,
+		settings); err != nil {
 		t.Fatal(err)
 	}
-	connection := "/etc/swanctl/conf.d/ikeward.conf"
 	key := "/etc/swanctl/private/client-key.pem"
 	old := f.files[connection].data
 	f.files[connection] = file{bytes.Replace(old, []byte("dpd_delay    = 30s"),
@@ -58,8 +60,7 @@ func TestInstallDryRunChanges(t *testing.T) {
 	f.writes = nil
 	var out bytes.Buffer
 	r := newFakeRunner(Packages...)
-	if err := (System{Files: f, Runner: r, Out: &out, DryRun: true,
-		Network: home(), Tables: withNAT()}).Install(p, settings); err != nil {
+	if _, err := dryRunOn(f, r, &out).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.writes) > 0 || len(r.ran()) > 0 {
@@ -80,28 +81,21 @@ func TestInstallDryRunChanges(t *testing.T) {
 		"         # login. swanctl's default, 1, gives up after one: 165 s of retransmits.",
 		"Would update /etc/swanctl/private/client-key.pem, which only root may read: not shown",
 		"Left 10 of the 12 files as they were",
-		"Would run systemctl daemon-reload",
-		"Would run networkctl reload",
-		"Would run systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
-		"Would run systemctl restart ikeward-routing.service",
-		"Would run systemctl start strongswan.service",
-		"Would run swanctl --load-all --noprompt",
-		"Would run systemctl start ikeward-watchdog.timer",
+		"Would run swanctl --load-all --noprompt, as " + connection + " changes",
 	})
 }
 
 // A dry run says which files of an earlier profile it would remove, and a change of mode alone.
+// The record would change, and the steps that read those files are due.
 func TestInstallDryRunStale(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
 	installOn(t, f, r, p)
 	f.files[Record] = file{append(f.files[Record].data, "/etc/swanctl/x509/old-cert.pem\n"...),
 		0o644}
-	timer := "/etc/systemd/system/ikeward-watchdog.timer"
 	f.files[timer] = file{f.files[timer].data, 0o600}
 	var out bytes.Buffer
-	if err := (System{Files: f, Runner: r, Out: &out, DryRun: true,
-		Network: home(), Tables: withNAT()}).Install(p, settings); err != nil {
+	if _, err := dryRunOn(f, r, &out).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.writes) > 0 || len(f.removes) > 0 || len(r.ran()) > 0 {
@@ -111,26 +105,25 @@ func TestInstallDryRunStale(t *testing.T) {
 		"Would update " + timer + ", mode 0600 to 0644",
 		"Left 11 of the 12 files as they were",
 		"Would remove /etc/swanctl/x509/old-cert.pem",
-		"Would run systemctl daemon-reload",
-		"Would run networkctl reload",
-		"Would run systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
-		"Would run systemctl restart ikeward-routing.service",
-		"Would run systemctl start strongswan.service",
-		"Would run swanctl --load-all --noprompt",
-		"Would run systemctl start ikeward-watchdog.timer",
+		"Would update " + Record,
+		"Would run systemctl daemon-reload, as " + timer + " changes",
+		"Would run systemctl enable ikeward-routing.service strongswan.service " +
+			"ikeward-watchdog.timer, as " + timer + " changes",
+		"Would run swanctl --load-all --noprompt, as /etc/swanctl/x509/old-cert.pem changes",
+		"Would run systemctl start ikeward-watchdog.timer, as " + timer + " changes",
 	})
 }
 
-// Where Pending lists a daemon, a dry run says it would restart it, though its settings are as
-// they should be, and leaves Pending unchanged.
+// Pending, which v0.2.0 wrote, owes every step, as v0.2.0 took them all. Where it lists a daemon,
+// a dry run says it would restart it too, though its settings are as they should be. Pending
+// stays.
 func TestInstallDryRunPending(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
 	installOn(t, f, r, p)
 	f.files[Pending] = file{pendingOf(StrongSwan), 0o644}
 	var out bytes.Buffer
-	if err := (System{Files: f, Runner: r, Out: &out, DryRun: true,
-		Network: home(), Tables: withNAT()}).Install(p, settings); err != nil {
+	if _, err := dryRunOn(f, r, &out).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.writes) > 0 || len(f.removes) > 0 || len(r.ran()) > 0 {
@@ -139,18 +132,19 @@ func TestInstallDryRunPending(t *testing.T) {
 	if got := f.files[Pending].data; !bytes.Equal(got, pendingOf(StrongSwan)) {
 		t.Errorf("Pending is\n%s", got)
 	}
-	checkLines(t, "the output", outputLines(t, out.String()), []string{
-		"An earlier install stopped before it ended: " + Pending + " lists strongswan.service " +
-			"to restart",
-		"Left 12 of the 12 files as they were",
-		"Would run systemctl daemon-reload",
-		"Would run networkctl reload",
-		"Would run systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
-		"Would run systemctl restart ikeward-routing.service",
-		"Would run systemctl restart strongswan.service",
-		"Would run swanctl --load-all --noprompt",
-		"Would run systemctl start ikeward-watchdog.timer",
-	})
+	wantOut := []string{"Left 12 of the 12 files as they were"}
+	for _, line := range []string{
+		"systemctl daemon-reload",
+		"networkctl reload",
+		"systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
+		"systemctl restart ikeward-routing.service",
+		"systemctl restart strongswan.service",
+		"swanctl --load-all --noprompt",
+		"systemctl start ikeward-watchdog.timer",
+	} {
+		wantOut = append(wantOut, "Would run "+line+", as "+owedWhy)
+	}
+	checkLines(t, "the output", outputLines(t, out.String()), wantOut)
 }
 
 // A dry run shows no content of a file that only root may read on the system, though install
@@ -158,11 +152,9 @@ func TestInstallDryRunPending(t *testing.T) {
 func TestInstallDryRunWasSecret(t *testing.T) {
 	p := newProfile(t, "client")
 	f := newFakeFiles()
-	connection := "/etc/swanctl/conf.d/ikeward.conf"
 	f.files[connection] = file{[]byte("secrets { ike { secret = by-hand } }\n"), 0o600}
 	var out bytes.Buffer
-	err := System{Files: f, Runner: newFakeRunner(Packages...), Out: &out, DryRun: true,
-		Network: home(), Tables: withNAT()}.Install(p, settings)
+	_, err := dryRunOn(f, newFakeRunner(Packages...), &out).Install(t.Context(), p, settings)
 	if err != nil {
 		t.Fatal(err)
 	}

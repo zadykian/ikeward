@@ -1,16 +1,17 @@
 package install
 
 import (
+	"context"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/fs"
 	"maps"
 	"net/netip"
+	"path"
 	"slices"
 	"strings"
-	"testing"
 
-	"github.com/zadykian/ikeward/internal/files"
 	"github.com/zadykian/ikeward/internal/routing"
 	"github.com/zadykian/ikeward/internal/status"
 )
@@ -73,20 +74,25 @@ func (f *fakeFiles) paths() []string {
 }
 
 // fakeRunner runs no command: it records each, answers dpkg-query from installed and systemctl
-// list-unit-files from noUnit, and fails those that fail names.
+// list-unit-files from noUnit, and fails those that fail names. systemctl show says each unit is
+// as install leaves it, but where states names a property, and resolvectl prints resolved.
 type fakeRunner struct {
 	commands []string
 	// installed are the packages dpkg-query reports installed.
 	installed map[string]bool
 	// noUnit are the units systemd lacks.
 	noUnit map[string]bool
+	// states are properties of units, as "UNIT PROPERTY", and their values.
+	states   map[string]string
+	resolved string
 	// fail fails the command whose line it names, and failOnce the first time it runs.
 	fail, failOnce map[string]error
 }
 
 func newFakeRunner(installed ...string) *fakeRunner {
 	r := &fakeRunner{installed: map[string]bool{}, noUnit: map[string]bool{},
-		fail: map[string]error{}, failOnce: map[string]error{}}
+		fail: map[string]error{}, failOnce: map[string]error{}, states: map[string]string{},
+		resolved: resolved}
 	for _, name := range installed {
 		r.installed[name] = true
 	}
@@ -110,6 +116,12 @@ func (r *fakeRunner) Run(name string, args ...string) (string, error) {
 		}
 		return unit + " enabled disabled\n", nil
 	}
+	if name == "systemctl" && args[0] == "show" {
+		return r.show(args[len(args)-1]), nil
+	}
+	if name == "resolvectl" {
+		return r.resolved, nil
+	}
 	if name == "dpkg-query" {
 		pkg := args[len(args)-1]
 		switch {
@@ -124,12 +136,33 @@ func (r *fakeRunner) Run(name string, args ...string) (string, error) {
 	return "", nil
 }
 
-// ran is r's commands but the queries: dpkg-query's and systemctl list-unit-files'.
+// show is what systemctl show prints of unit: what states names, else the unit as install leaves
+// it, and the watchdog's service as its timer leaves it between runs.
+func (r *fakeRunner) show(unit string) string {
+	values := []string{"LoadState=loaded", "ActiveState=active", "UnitFileState=enabled",
+		"NeedDaemonReload=no"}
+	if unit == Service {
+		values[1], values[2] = "ActiveState=inactive", "UnitFileState=static"
+	}
+	var out strings.Builder
+	for _, v := range values {
+		key, _, _ := strings.Cut(v, "=")
+		if state, ok := r.states[unit+" "+key]; ok {
+			v = key + "=" + state
+		}
+		out.WriteString(v + "\n")
+	}
+	return out.String()
+}
+
+// ran is r's commands but the queries: dpkg-query's, systemctl list-unit-files' and show's, and
+// resolvectl's.
 func (r *fakeRunner) ran() []string {
 	var ran []string
 	for _, line := range r.commands {
 		if !strings.HasPrefix(line, "dpkg-query ") &&
-			!strings.HasPrefix(line, "systemctl list-unit-files ") {
+			!strings.HasPrefix(line, "systemctl list-unit-files ") &&
+			!strings.HasPrefix(line, "systemctl show ") && !strings.HasPrefix(line, "resolvectl ") {
 			ran = append(ran, line)
 		}
 	}
@@ -137,7 +170,7 @@ func (r *fakeRunner) ran() []string {
 }
 
 // fakeTables are nftables' tables, with those that tables names, which records those removed.
-// hasErr fails HasTable, and removeErr RemoveTable.
+// hasErr fails HasTable, and removeErr RemoveTable. The NAT table's rule has NATed no connection.
 type fakeTables struct {
 	tables            map[string]bool
 	removed           []string
@@ -145,6 +178,13 @@ type fakeTables struct {
 }
 
 func (f *fakeTables) HasTable(name string) (bool, error) { return f.tables[name], f.hasErr }
+
+func (f *fakeTables) Connections() (uint64, error) {
+	if !f.tables[routing.NATTable] {
+		return 0, routing.Missing{Err: errors.New("there is no table ip " + routing.NATTable)}
+	}
+	return 0, nil
+}
 
 func (f *fakeTables) RemoveTable(name string) error {
 	if f.removeErr != nil {
@@ -155,30 +195,14 @@ func (f *fakeTables) RemoveTable(name string) error {
 	return nil
 }
 
-// withNAT are tables with ikeward's NAT table, as ikeward routing makes it.
-func withNAT() *fakeTables { return &fakeTables{tables: map[string]bool{"ikeward": true}} }
-
-// failingWriter fails every write.
-type failingWriter struct{}
-
-func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("the pipe is closed") }
-
-// checkLines fails t where got's lines are not want.
-func checkLines(t *testing.T, what string, got, want []string) {
-	t.Helper()
-	if !slices.Equal(got, want) {
-		t.Errorf("%s:\n  %s\nwant:\n  %s", what, strings.Join(got, "\n  "),
-			strings.Join(want, "\n  "))
-	}
-}
-
 // fakeNetwork is a kernel with rules, and routes by table, which records the rules removed, and
-// removes the routes of a table. It has the links that links names, and records those removed.
-// The errors fail HasLink, RemoveLink, Rules, RemoveRule and RemoveRoutes, in turn.
+// removes the routes of a table. It has the links that links names, with addrs' addresses, and
+// records those removed. The errors fail HasLink, RemoveLink, Rules, RemoveRule and RemoveRoutes.
 type fakeNetwork struct {
 	rules              []routing.Rule
 	routes             map[int][]status.Route
 	links              map[string]bool
+	addrs              map[string][]netip.Prefix
 	removed, unruled   []string
 	linkErr, removeErr error
 	rulesErr, ruleErr  error
@@ -196,9 +220,7 @@ func (f *fakeNetwork) RemoveLink(name string) error {
 	return nil
 }
 
-func (f *fakeNetwork) Addrs(string) ([]netip.Prefix, error) {
-	return nil, errors.New("install reads no address")
-}
+func (f *fakeNetwork) Addrs(link string) ([]netip.Prefix, error) { return f.addrs[link], nil }
 
 func (f *fakeNetwork) Rules() ([]routing.Rule, error) { return slices.Clone(f.rules), f.rulesErr }
 
@@ -222,16 +244,36 @@ func (f *fakeNetwork) RemoveRoutes(table int) (int, error) {
 	return n, nil
 }
 
-// home is a kernel as ikeward leaves it: the kernel's rules with ikeward's, and table 220's route
-// and floor. It has the tunnel's link too, as networkd makes it once install has run.
-func home() *fakeNetwork {
-	subnet := settings.Floors[0]
-	return &fakeNetwork{
-		rules: []routing.Rule{{Priority: 0, Table: 255, SuppressPrefixlen: -1}, routing.Rules[0],
-			routing.Rules[1], {Priority: 32766, Table: routing.Main, SuppressPrefixlen: -1}},
-		routes: map[int][]status.Route{files.Table: {
-			{Dst: subnet, Link: files.Link, Type: status.Unicast},
-			{Dst: subnet, Type: status.Unreachable, Metric: routing.FloorMetric}}},
-		links: map[string]bool{files.Link: true},
+// fakeCharon is charon as it loads the files on files. It has the connection where its file is
+// there, and the certificates of /etc/swanctl/x509, with their key where /etc/swanctl/private
+// holds one. It holds those of /etc/swanctl/x509ca as a CA's. Where err is set, it fails, and the
+// no fields leave out what they name.
+type fakeCharon struct {
+	files                       *fakeFiles
+	err                         error
+	noConn, noCert, noKey, noCA bool
+}
+
+func (c *fakeCharon) HasConn(_ context.Context, name string) (bool, error) {
+	_, ok := c.files.files["/etc/swanctl/conf.d/"+name+".conf"]
+	return ok && !c.noConn, c.err
+}
+
+func (c *fakeCharon) Certs(context.Context) ([]Cert, error) {
+	key := slices.ContainsFunc(c.files.paths(), func(p string) bool {
+		return strings.HasPrefix(p, "/etc/swanctl/private/")
+	})
+	var certs []Cert
+	for _, p := range c.files.paths() {
+		dir, _ := path.Split(p)
+		block, _ := pem.Decode(c.files.files[p].data)
+		switch {
+		case block == nil:
+		case dir == "/etc/swanctl/x509/" && !c.noCert:
+			certs = append(certs, Cert{DER: block.Bytes, Key: key && !c.noKey})
+		case dir == "/etc/swanctl/x509ca/" && !c.noCA:
+			certs = append(certs, Cert{DER: block.Bytes, CA: true})
+		}
 	}
+	return certs, c.err
 }

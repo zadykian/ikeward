@@ -3,17 +3,17 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/pem"
 	"errors"
 	"io/fs"
 	"net/netip"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/zadykian/ikeward/internal/files"
 	"github.com/zadykian/ikeward/internal/host"
+	"github.com/zadykian/ikeward/internal/install"
 	"github.com/zadykian/ikeward/internal/profile/profiletest"
 	"github.com/zadykian/ikeward/internal/routing"
 	"github.com/zadykian/ikeward/internal/status"
@@ -34,15 +34,62 @@ func (f *fakeTerminal) ReadPassword() ([]byte, error) {
 	return []byte(f.password), f.err
 }
 
-// fakeRunner runs no command: it records each, and dpkg-query reports every package installed.
-type fakeRunner struct{ commands []string }
+// fakeRunner runs no command: it records each. dpkg-query reports every package installed, and
+// resolvectl prints resolved. systemctl show prints what units holds for a unit it names, and
+// healthyUnit for any other.
+type fakeRunner struct {
+	commands []string
+	units    map[string]string
+}
+
+// healthyUnit is what systemctl show prints of a unit install took up.
+const healthyUnit = "LoadState=loaded\nActiveState=active\nUnitFileState=enabled\n" +
+	"NeedDaemonReload=no\n"
+
+// resolved is what resolvectl prints of ikeward0 with the VPN up.
+const resolved = `[{"ifname":"ikeward0","defaultRoute":false,` +
+	`"servers":[{"addressString":"192.0.2.10"}],"searchDomains":[` +
+	`{"name":"example.test","routeOnly":true}],"scopes":[{"protocol":"dns"}]}]`
 
 func (r *fakeRunner) Run(name string, args ...string) (string, error) {
 	r.commands = append(r.commands, strings.Join(append([]string{name}, args...), " "))
-	if name == "dpkg-query" {
+	switch {
+	case name == "dpkg-query":
 		return "installed", nil
+	case name == "resolvectl":
+		return resolved, nil
+	case name == "systemctl" && args[0] == "show":
+		if out, ok := r.units[args[len(args)-1]]; ok {
+			return out, nil
+		}
+		return healthyUnit, nil
 	}
 	return "", nil
+}
+
+// fakeCharon is strongSwan's charon as swanctl --load-all leaves it. It holds what files has of
+// install's files for the profile client: the connection, the client's certificate with its key,
+// and the CA's certificate.
+type fakeCharon struct{ files install.Files }
+
+func (c fakeCharon) HasConn(_ context.Context, name string) (bool, error) {
+	_, _, err := c.files.Read("/etc/swanctl/conf.d/" + name + ".conf")
+	return err == nil, nil
+}
+
+func (c fakeCharon) Certs(context.Context) ([]install.Cert, error) {
+	_, _, noKey := c.files.Read("/etc/swanctl/private/client-key.pem")
+	var certs []install.Cert
+	for _, f := range []struct {
+		path string
+		ca   bool
+	}{{"/etc/swanctl/x509/client-cert.pem", false}, {"/etc/swanctl/x509ca/" + files.CACert, true}} {
+		data, _, err := c.files.Read(f.path)
+		if block, _ := pem.Decode(data); err == nil && block != nil {
+			certs = append(certs, install.Cert{DER: block.Bytes, CA: f.ca, Key: !f.ca && noKey == nil})
+		}
+	}
+	return certs, nil
 }
 
 // fakeNAT is ikeward's NAT table, missing where missing says, beside other tables that tables
@@ -210,6 +257,7 @@ func newFakeSystem(t *testing.T, stdin string) *fakeSystem {
 	f.system = system{
 		stdin: strings.NewReader(stdin), stdout: &f.out, stderr: &f.errOut,
 		terminal: &f.term, files: host.Root(f.root), runner: &f.ran, nat: &f.nat,
+		charon:  fakeCharon{host.Root(f.root)},
 		network: f.kernel, names: &f.names, euid: func() int { return f.uid },
 		runsAs: func(path string) (string, bool, error) {
 			if f.program == "" {
@@ -224,45 +272,6 @@ func newFakeSystem(t *testing.T, stdin string) *fakeSystem {
 // settings is files.SettingsFile as install writes it with installArgs' values.
 const settings = "dns 192.0.2.10\ndomain example.test\nprobe example.test\n" +
 	"floor 10.88.0.0/16\n"
-
-// installedRoot is a temporary root directory where install wrote files.SettingsFile.
-func installedRoot(t *testing.T) string {
-	t.Helper()
-	root := t.TempDir()
-	if err := host.Root(root).Write(files.SettingsFile, []byte(settings), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	return root
-}
-
-// installed are the files under root, each as the absolute path it stands for, sorted.
-func (f *fakeSystem) installed(t *testing.T) []string {
-	t.Helper()
-	var paths []string
-	err := filepath.WalkDir(f.root, func(name string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
-			return err
-		}
-		rel, err := filepath.Rel(f.root, name)
-		paths = append(paths, "/"+filepath.ToSlash(rel))
-		return err
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	slices.Sort(paths)
-	return paths
-}
-
-// mode is the mode of the file at path under root.
-func (f *fakeSystem) mode(t *testing.T, path string) fs.FileMode {
-	t.Helper()
-	info, err := os.Stat(filepath.Join(f.root, path))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return info.Mode().Perm()
-}
 
 // failingWriter fails every write.
 type failingWriter struct{}

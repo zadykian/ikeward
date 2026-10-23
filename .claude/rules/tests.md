@@ -16,8 +16,8 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
 - Unit tests never touch the host's VPN or network. None runs `swanctl`, `ip`, `nft`, `resolvectl`
   or `systemctl`, or opens VICI, netlink or nftables on the host.
 - A package's tests reach the system through its small interfaces, with fakes: `Files`, `Runner`,
-  `Route`, `NAT`, `Kernel`, `Tables`, `Tunnel`, `Network`, `Resolver`, `Checker` and `Clock`, as
-  CLAUDE.md's layout lists them.
+  `Route`, `NAT`, `Kernel`, `Tables`, `Tunnel`, `Charon`, `Network`, `Resolver`, `Checker` and
+  `Clock`, as CLAUDE.md's layout lists them.
 - `internal/host`'s tests touch a temporary directory, in-memory pipes and fakes. A fake charon
   listens on a socket in a temporary directory, a fake kernel answers nftables' batches and reads,
   and a fake DNS server answers on a pipe. They run sh alone, through `host.Commands`, and no
@@ -60,10 +60,12 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
   `flags_test.go`, install's flags, their mistakes, and the floors that hold the VPN server's
   address. `password_test.go`, the `.p12`'s password. `status_test.go`, `watchdog_test.go`,
   `updown_test.go` and `routing_test.go` cover their commands, and `fake_test.go` the fake system.
-  `helpers_test.go` writes the profile's files and gives install's arguments.
+  `helpers_test.go` writes the profile's files, gives install's arguments, and reads what it wrote.
 - `internal/install`: `install_test.go`, a run, again and with changes; `half_way_test.go`, a stop
-  half way and the rerun. `dry_run_test.go`, `--dry-run`; `failures_test.go`, failed commands and
-  output; `uninstall_test.go`, `uninstall`; `diff_test.go`, the diffs.
+  half way, the journal and the rerun. `steps_test.go`, the steps due by the files they read;
+  `probe_test.go`, each probe making its step due. `dry_run_test.go`, `--dry-run`;
+  `failures_test.go`, failed commands, the journal's errors and output; `uninstall_test.go`,
+  `uninstall`; `diff_test.go`, the diffs.
 - `internal/updown`: `updown_test.go`, `Run` as the tunnel goes up, the ranges it learns or
   refuses, and its errors. `down_test.go`, the tunnel going down, as strongSwan stops or another
   SA grants the range.

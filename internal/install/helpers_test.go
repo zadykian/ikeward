@@ -2,8 +2,10 @@ package install
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/zadykian/ikeward/internal/profile"
 	"github.com/zadykian/ikeward/internal/profile/profiletest"
 	"github.com/zadykian/ikeward/internal/routing"
+	"github.com/zadykian/ikeward/internal/status"
 )
 
 // newProfile is a profile issued for name, as Parse reads it.
@@ -72,6 +75,12 @@ func recordOf(paths ...string) []byte {
 		strings.Join(paths, "\n") + "\n")
 }
 
+// journalOf is Journal as listing commands.
+func journalOf(commands ...string) []byte {
+	return []byte("# The steps ikeward install owes, which a rerun takes where it stops half way.\n" +
+		strings.Join(commands, "\n") + "\n")
+}
+
 // pendingOf is Pending as listing units.
 func pendingOf(units ...string) []byte {
 	return []byte("# The daemons whose settings ikeward install changes, which a rerun " +
@@ -81,20 +90,62 @@ func pendingOf(units ...string) []byte {
 // installOn runs install for p on f and r, which must succeed, then clears what they recorded.
 func installOn(t *testing.T, f *fakeFiles, r *fakeRunner, p *profile.Profile) {
 	t.Helper()
-	if err := onHome(f, r, &bytes.Buffer{}).Install(p, settings); err != nil {
+	if _, err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
 	f.writes, f.removes, r.commands = nil, nil, nil
 }
 
-// restartsDaemon is whether line, a command install ran, restarts a daemon, networkd or
-// strongSwan. The routing's service restarts on every install, and is no daemon.
-func restartsDaemon(line string) bool {
-	return strings.Contains(line, "restart") && line != "systemctl restart "+routing.Unit
+// onHome is install's system on f and r, on home's kernel and NAT table, with a charon that loaded
+// f's files. It says what it does on out.
+func onHome(f *fakeFiles, r *fakeRunner, out io.Writer) System {
+	return System{Files: f, Runner: r, Out: out, Network: home(), Tables: withNAT(),
+		Charon: &fakeCharon{files: f}}
 }
 
-// onHome is install's system on f and r, on home's kernel, with ikeward's NAT table, saying what
-// it does on out.
-func onHome(f *fakeFiles, r *fakeRunner, out io.Writer) System {
-	return System{Files: f, Runner: r, Out: out, Network: home(), Tables: withNAT()}
+// dryRunOn is onHome's system in a dry run.
+func dryRunOn(f *fakeFiles, r *fakeRunner, out io.Writer) System {
+	s := onHome(f, r, out)
+	s.DryRun = true
+	return s
+}
+
+// resolved is what resolvectl --json=short status ikeward0 prints once networkd has set up the
+// link from settings.
+const resolved = `[{"ifname":"ikeward0","defaultRoute":false,` +
+	`"servers":[{"addressString":"192.0.2.10"}],` +
+	`"searchDomains":[{"name":"example.test","routeOnly":true}],` +
+	`"scopes":[{"protocol":"dns"}]}]` + "\n"
+
+// withNAT are tables with ikeward's NAT table, as ikeward routing makes it.
+func withNAT() *fakeTables { return &fakeTables{tables: map[string]bool{"ikeward": true}} }
+
+// failingWriter fails every write.
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("the pipe is closed") }
+
+// checkLines fails t where got's lines are not want.
+func checkLines(t *testing.T, what string, got, want []string) {
+	t.Helper()
+	if !slices.Equal(got, want) {
+		t.Errorf("%s:\n  %s\nwant:\n  %s", what, strings.Join(got, "\n  "),
+			strings.Join(want, "\n  "))
+	}
+}
+
+// home is a kernel as ikeward leaves it: the kernel's rules with ikeward's, and table 220's route
+// and floor. It has the tunnel's link too, with its own address, as networkd makes it once install
+// has run.
+func home() *fakeNetwork {
+	subnet := settings.Floors[0]
+	return &fakeNetwork{
+		rules: []routing.Rule{{Priority: 0, Table: 255, SuppressPrefixlen: -1}, routing.Rules[0],
+			routing.Rules[1], {Priority: 32766, Table: routing.Main, SuppressPrefixlen: -1}},
+		routes: map[int][]status.Route{files.Table: {
+			{Dst: subnet, Link: files.Link, Type: status.Unicast},
+			{Dst: subnet, Type: status.Unreachable, Metric: routing.FloorMetric}}},
+		links: map[string]bool{files.Link: true},
+		addrs: map[string][]netip.Prefix{files.Link: {netip.MustParsePrefix(files.LinkULA)}},
+	}
 }

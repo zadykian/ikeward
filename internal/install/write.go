@@ -25,61 +25,112 @@ func (c change) secret() bool {
 	return c.Mode&0o077 == 0 || (c.exists && c.oldMode&0o077 == 0)
 }
 
-// write writes the files of want that differ on the system and removes those install wrote before
-// but no longer writes, naming each. It keeps Record listing the files install wrote, and has pend
-// add to restart the daemons whose settings change. A dry run prints the changes as diffs, but for
-// a file only root may read, and writes nothing.
-func (s System) write(out *printer, want []files.File, restart *restarts) error {
-	old, err := s.record()
+// update is what install changes of its files: those of want that the system lacks or has
+// otherwise, and how many it has as they are. Then those Record lists but install no longer
+// writes. Where Record exists, recorded is set, and record holds what it lists.
+type update struct {
+	want     []files.File
+	changes  []change
+	same     int
+	stale    []string
+	record   []string
+	recorded bool
+}
+
+// update reads what install changes to write want.
+func (s System) update(want []files.File) (update, error) {
+	u := update{want: want}
+	var err error
+	u.record, err = s.record()
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return err
+		return update{}, err
 	}
-	changes, same, err := s.changes(want)
-	if err != nil {
-		return err
+	u.recorded = err == nil
+	if u.changes, u.same, err = s.changes(want); err != nil {
+		return update{}, err
 	}
-	paths := make([]string, 0, len(want))
-	for _, f := range want {
-		paths = append(paths, f.Path)
-	}
-	var stale []string
-	for _, p := range old {
+	paths := u.paths()
+	for _, p := range u.record {
 		if !slices.Contains(paths, p) {
-			stale = append(stale, p)
+			u.stale = append(u.stale, p)
 		}
 	}
+	return u, nil
+}
+
+// paths are the paths of the files install writes.
+func (u update) paths() []string {
+	paths := make([]string, 0, len(u.want))
+	for _, f := range u.want {
+		paths = append(paths, f.Path)
+	}
+	return paths
+}
+
+// changed are the paths of the files install writes or removes.
+func (u update) changed() []string {
+	changed := slices.Clone(u.stale)
+	for _, c := range u.changes {
+		changed = append(changed, c.Path)
+	}
+	return changed
+}
+
+// differs is whether install changes a file, Record among them.
+func (u update) differs() bool {
+	return len(u.changes) > 0 || len(u.stale) > 0 || !slices.Equal(u.record, u.paths())
+}
+
+// write writes the files of u that differ on the system and removes the stale ones, naming each.
+// It keeps Record listing the files install wrote, and names it where it changes. A dry run prints
+// the changes as diffs, but for a file only root may read, and writes nothing.
+func (s System) write(out *printer, u update) error {
+	paths := u.paths()
 	// Record gains the new files before they are written, so that uninstall finds them even where
 	// install stops half way, and loses the old ones once they are gone.
-	both := append(slices.Clone(paths), stale...)
+	both := append(slices.Clone(paths), u.stale...)
 	if !s.DryRun {
-		if err := s.writeRecord(old, both); err != nil {
+		if err := s.writeRecord(u.record, both); err != nil {
 			return err
 		}
 	}
-	changed := slices.Clone(stale)
-	for _, c := range changes {
-		changed = append(changed, c.Path)
-	}
-	if err := s.pend(restart, changed); err != nil {
-		return err
-	}
-	for _, c := range changes {
+	for _, c := range u.changes {
 		if err := s.writeChange(out, c); err != nil {
 			return err
 		}
 	}
-	if same > 0 {
-		out.printf("Left %d of the %d files as they were\n", same, len(want))
+	if u.same > 0 {
+		out.printf("Left %d of the %d files as they were\n", u.same, len(u.want))
 	}
-	for _, p := range stale {
+	for _, p := range u.stale {
 		if err := s.remove(out, p); err != nil {
 			return err
 		}
 	}
-	if s.DryRun {
+	if slices.Equal(u.record, paths) {
 		return nil
 	}
-	return s.writeRecord(both, paths)
+	if !s.DryRun {
+		if err := s.writeRecord(both, paths); err != nil {
+			return err
+		}
+	}
+	out.printf("%s %s\n", s.verb(u.recorded), Record)
+	return nil
+}
+
+// verb says that install created a file, or updated it where it existed, or in a dry run that it
+// would.
+func (s System) verb(existed bool) string {
+	switch {
+	case s.DryRun && existed:
+		return "Would update"
+	case s.DryRun:
+		return "Would create"
+	case existed:
+		return "Updated"
+	}
+	return "Created"
 }
 
 // writeChange writes c, or in a dry run prints it.
@@ -91,11 +142,7 @@ func (s System) writeChange(out *printer, c change) error {
 	if err := s.Files.Write(c.Path, c.Data, c.Mode); err != nil {
 		return fmt.Errorf("cannot write %s: %w", c.Path, err)
 	}
-	verb := "Created"
-	if c.exists {
-		verb = "Updated"
-	}
-	out.printf("%s %s\n", verb, c.Path)
+	out.printf("%s %s\n", s.verb(c.exists), c.Path)
 	return nil
 }
 

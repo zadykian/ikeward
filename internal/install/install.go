@@ -2,10 +2,10 @@
 //
 // Install installs strongSwan's packages where they are missing, and writes the files
 // internal/files makes from the profile and the settings where they differ. It then has systemd,
-// networkd and strongSwan take them up, ikeward's routing before strongSwan. Uninstall removes
-// install's files again, the rules, files.Table's routes, the NAT table and files.Link. Both reach
-// the system through Files, Runner, Tables and Network, and with DryRun print what they would
-// change, and change nothing.
+// networkd and strongSwan take them up, ikeward's routing before strongSwan, in the steps due
+// alone. Uninstall removes install's files again, the rules, files.Table's routes, the NAT table
+// and files.Link. Both reach the system through Files, Runner, Tables and Network, and install
+// reads Charon too. With DryRun, they print what they would change, and change nothing.
 package install
 
 import (
@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"slices"
 	"strings"
 
 	"github.com/zadykian/ikeward/internal/files"
@@ -34,8 +33,11 @@ const (
 	// LastRestart holds when ikeward watchdog last restarted strongSwan, which uninstall removes
 	// too: install does not write it.
 	LastRestart = "/var/lib/ikeward/last-restart"
-	// Pending lists the daemons whose settings install changes, from before they change until
-	// install ends, for a rerun where it stopped half way. Uninstall removes it too.
+	// Journal lists the commands of the steps install owes, from before it changes a file until it
+	// ends, for a rerun where it stopped half way. Uninstall removes it too.
+	Journal = "/var/lib/ikeward/pending-steps"
+	// Pending is Journal's forerunner, which v0.2.0 wrote: the daemons to restart. Install reads it
+	// as owing every step, and removes it as it ends, as uninstall does.
 	Pending = "/var/lib/ikeward/pending-restarts"
 	// StrongSwan is strongSwan's unit, which charon-systemd ships.
 	StrongSwan = files.StrongSwan
@@ -62,16 +64,18 @@ type Runner interface {
 	Run(name string, args ...string) (string, error)
 }
 
-// Tables are nftables' tables of the ip family, of which uninstall removes routing.NATTable.
+// Tables are nftables' tables of the ip family. Install checks routing.NATTable, and uninstall
+// removes it.
 type Tables interface {
+	status.NAT
 	// HasTable is whether nftables has the table named name.
 	HasTable(name string) (bool, error)
 	// RemoveTable removes the table named name, where it exists.
 	RemoveTable(name string) error
 }
 
-// Network is the kernel's rules and routes, of which uninstall removes ikeward's, and its links,
-// of which it removes files.Link.
+// Network is the kernel's addresses, rules and routes, of which uninstall removes ikeward's, and
+// its links, of which it removes files.Link.
 type Network interface {
 	status.Network
 	// HasLink is whether the kernel has a link named name.
@@ -106,6 +110,7 @@ type System struct {
 	Runner  Runner
 	Tables  Tables
 	Network Network
+	Charon  Charon
 	// Out is where they say what they do.
 	Out io.Writer
 	// DryRun has them say what they would do, and do nothing that changes the system.
@@ -126,47 +131,54 @@ func (p *printer) printf(format string, args ...any) {
 }
 
 // Install installs the VPN from p, with settings, the remote network's values. It installs
-// strongSwan's packages where missing, and writes the files that differ. It then runs the commands
-// that take them up.
-func (s System) Install(p *profile.Profile, settings files.Settings) error {
+// strongSwan's packages where missing, and writes the files that differ. It then runs the steps
+// due, which take them up. It returns whether it changed the system, or in a dry run would.
+func (s System) Install(ctx context.Context, p *profile.Profile, settings files.Settings) (
+	bool, error) {
 	generated, err := files.Generate(p, settings)
 	if err != nil {
-		return err
+		return false, err
 	}
 	credentials, err := files.Credentials(p)
 	if err != nil {
-		return err
+		return false, err
 	}
 	out := &printer{w: s.Out}
 	out.printf("The profile gives:\n")
 	for _, line := range p.Summary() {
 		out.printf("  %s\n", line)
 	}
-	if missing := s.missing(); len(missing) > 0 {
+	missing := s.missing()
+	if len(missing) > 0 {
 		if err := s.installPackages(out, missing); err != nil {
-			return err
+			return true, err
 		}
 	}
-	restart, err := s.pending()
+	owed, err := s.owed()
 	if err != nil {
-		return err
+		return len(missing) > 0, err
 	}
-	if len(restart.units) > 0 {
-		out.printf("An earlier install stopped before it ended: %s lists %s to restart\n",
-			Pending, strings.Join(restart.units, " and "))
+	u, err := s.update(append(generated, credentials...))
+	if err != nil {
+		return len(missing) > 0, err
 	}
-	if err := s.write(out, append(generated, credentials...), restart); err != nil {
-		return err
+	plan := s.plan(newProbes(ctx, s, p, settings), u.changed(), owed)
+	changed := len(missing) > 0 || u.differs() || plan.due()
+	// Journal lists the steps before any file changes, so that a rerun takes them where this run
+	// stops half way.
+	if err := s.writeJournal(owed, plan); err != nil {
+		return changed, err
 	}
-	for _, command := range takeUp(restart.units) {
-		if err := s.run(out, command[0], command[1:]...); err != nil {
-			return err
-		}
+	if err := s.write(out, u); err != nil {
+		return changed, err
 	}
-	if err := s.restarted(restart); err != nil {
-		return err
+	if err := s.take(out, plan); err != nil {
+		return changed, err
 	}
-	return out.err
+	if err := s.ended(owed, plan); err != nil {
+		return changed, err
+	}
+	return changed, out.err
 }
 
 // missing returns the packages of Packages that dpkg has not installed; one that dpkg-query does
@@ -200,60 +212,24 @@ func (s System) installPackages(out *printer, missing []string) error {
 	return s.run(out, "apt-get", args...)
 }
 
-// networkd is systemd-networkd's unit.
-const networkd = "systemd-networkd.service"
-
-// daemon is a unit, and the directory of its own settings.
-type daemon struct{ unit, dir string }
-
-// daemons are the units that read their own settings only as they start: install restarts one
-// where it changes a file in its directory.
-var daemons = []daemon{
-	{networkd, "/etc/systemd/networkd.conf.d/"},
-	{StrongSwan, "/etc/strongswan.d/"},
-}
-
-// takeUp is the commands that have the system take up install's files. Each runs on every install,
-// and so mends an install that stopped half way. But a daemon that restart names, whose settings
-// changed in this run or one that stopped, restarts instead. The routing's service restarts each
-// time, before strongSwan starts.
-func takeUp(restart []string) [][]string {
-	orRestart := func(unit string, command ...string) []string {
-		if slices.Contains(restart, unit) {
-			return []string{"systemctl", "restart", unit}
-		}
-		return command
-	}
-	return [][]string{
-		{"systemctl", "daemon-reload"},
-		orRestart(networkd, "networkctl", "reload"),
-		{"systemctl", "enable", routing.Unit, StrongSwan, Timer},
-		// The service adds what is missing of the rules and the floors, and makes the NAT table
-		// anew. No traffic to the remote network then takes the default route as the tunnel comes up.
-		{"systemctl", "restart", routing.Unit},
-		orRestart(StrongSwan, "systemctl", "start", StrongSwan),
-		// strongSwan loads the files under /etc/swanctl as it starts, but not as it runs. A change
-		// of the networks replaces the CHILD SA in the same IKE SA: the tunnel pauses for a moment.
-		{"swanctl", "--load-all", "--noprompt"},
-		// Last, once the connection is loaded, which the watchdog checks.
-		{"systemctl", "start", Timer},
-	}
-}
-
-// changedIn is whether changed holds a file in dir.
-func changedIn(changed []string, dir string) bool {
-	return slices.ContainsFunc(changed, func(p string) bool { return strings.HasPrefix(p, dir) })
-}
-
 // run runs the command name with args, or in a dry run says it would.
 func (s System) run(out *printer, name string, args ...string) error {
-	line := strings.Join(append([]string{name}, args...), " ")
+	return s.runFor(out, append([]string{name}, args...), "")
+}
+
+// runFor runs command, or in a dry run says it would, and why, where why says.
+func (s System) runFor(out *printer, command []string, why string) error {
+	line := strings.Join(command, " ")
+	because := ""
+	if why != "" {
+		because = ", as " + why
+	}
 	if s.DryRun {
-		out.printf("Would run %s\n", line)
+		out.printf("Would run %s%s\n", line, because)
 		return nil
 	}
-	out.printf("Running %s\n", line)
-	if _, err := s.Runner.Run(name, args...); err != nil {
+	out.printf("Running %s%s\n", line, because)
+	if _, err := s.Runner.Run(command[0], command[1:]...); err != nil {
 		return fmt.Errorf("%s: %w", line, err)
 	}
 	return nil

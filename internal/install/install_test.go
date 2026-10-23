@@ -7,21 +7,29 @@ import (
 	"testing"
 )
 
+// The connection's file and the watchdog's timer, which the tests change.
+const (
+	connection = "/etc/swanctl/conf.d/ikeward.conf"
+	timer      = "/etc/systemd/system/ikeward-watchdog.timer"
+)
+
 // On a system without the VPN, install installs the missing packages, writes every file and
-// the record, then restarts networkd and strongSwan, whose settings are new. Pending lists them
-// from before their settings are written until install ends.
+// the record, then takes every step, as each reads a file that is new. networkd and strongSwan
+// restart, whose settings are new. Journal lists the steps from before a file is written until
+// install ends.
 func TestInstall(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner("strongswan", "strongswan-swanctl")
 	var out bytes.Buffer
-	if err := onHome(f, r, &out).Install(p, settings); err != nil {
-		t.Fatal(err)
+	changed, err := onHome(f, r, &out).Install(t.Context(), p, settings)
+	if err != nil || !changed {
+		t.Fatalf("Install: %v, %v", changed, err)
 	}
 
 	files := want(t, p)
 	paths := pathsOf(files)
-	checkLines(t, "the files written", f.writes, append([]string{Record, Pending}, paths...))
-	checkLines(t, "the files removed", f.removes, []string{Pending})
+	checkLines(t, "the files written", f.writes, append([]string{Journal, Record}, paths...))
+	checkLines(t, "the files removed", f.removes, []string{Journal})
 	for _, want := range files {
 		got := f.files[want.Path]
 		if !bytes.Equal(got.data, want.Data) || got.mode != want.Mode {
@@ -50,17 +58,16 @@ func TestInstall(t *testing.T) {
 		"swanctl --load-all --noprompt",
 		"systemctl start ikeward-watchdog.timer",
 	})
-	var wantOut []string
-	for _, line := range r.ran() {
-		if strings.HasPrefix(line, "apt-get") {
-			wantOut = append(wantOut, "Running "+line)
-		}
-	}
+	wantOut := []string{"Running " + r.ran()[0]}
 	for _, path := range paths {
 		wantOut = append(wantOut, "Created "+path)
 	}
-	for _, line := range r.ran()[1:] {
-		wantOut = append(wantOut, "Running "+line)
+	wantOut = append(wantOut, "Created "+Record)
+	for i, line := range r.ran()[1:] {
+		wantOut = append(wantOut, "Running "+line+", as "+[]string{
+			"/etc/systemd/system/ikeward-watchdog.service", "/etc/systemd/networkd.conf.d/" +
+				"10-keep-vpn-routing.conf", timer, "/etc/systemd/system/ikeward-routing.service",
+			"/etc/strongswan.d/zz-ikeward.conf", connection, timer}[i]+" changes")
 	}
 	checkLines(t, "the output", outputLines(t, out.String()), wantOut)
 	if !strings.Contains(out.String(), "  "+p.Summary()[0]+"\n") {
@@ -68,104 +75,55 @@ func TestInstall(t *testing.T) {
 	}
 }
 
-// Run again, install writes nothing and installs nothing, but reloads, loads and enables all
-// the same, which mends an install that stopped half way. Without Pending, it restarts nothing.
+// Run again on the system it set up, install writes nothing, installs nothing and takes no step,
+// as no probe finds one due, and says it changed nothing.
 func TestInstallAgain(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
 	installOn(t, f, r, p)
 	var out bytes.Buffer
-	if err := onHome(f, r, &out).Install(p, settings); err != nil {
-		t.Fatal(err)
+	changed, err := onHome(f, r, &out).Install(t.Context(), p, settings)
+	if err != nil || changed {
+		t.Fatalf("Install: %v, %v", changed, err)
 	}
-	if len(f.writes) > 0 || len(f.removes) > 0 {
-		t.Errorf("wrote %q and removed %q", f.writes, f.removes)
+	if len(f.writes) > 0 || len(f.removes) > 0 || len(r.ran()) > 0 {
+		t.Errorf("wrote %q, removed %q and ran %q", f.writes, f.removes, r.ran())
 	}
-	commands := []string{
-		"systemctl daemon-reload",
-		"networkctl reload",
-		"systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
-		"systemctl restart ikeward-routing.service",
-		"systemctl start strongswan.service",
-		"swanctl --load-all --noprompt",
-		"systemctl start ikeward-watchdog.timer",
-	}
-	checkLines(t, "the commands", r.ran(), commands)
-	wantOut := []string{"Left 12 of the 12 files as they were"}
-	for _, line := range commands {
-		wantOut = append(wantOut, "Running "+line)
-	}
-	checkLines(t, "the output", outputLines(t, out.String()), wantOut)
+	checkLines(t, "the output", outputLines(t, out.String()),
+		[]string{"Left 12 of the 12 files as they were"})
 }
 
-// install writes only the files that differ, in content or in mode, and restarts no daemon whose
-// settings stay.
+// install writes only the files that differ, in content or in mode, and takes the steps that
+// read them alone. It restarts no daemon whose settings stay.
 func TestInstallChanges(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
-	if err := onHome(f, r, &bytes.Buffer{}).Install(p, settings); err != nil {
+	if _, err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
-	connection := "/etc/swanctl/conf.d/ikeward.conf"
 	key := "/etc/swanctl/private/client-key.pem"
-	timer := "/etc/systemd/system/ikeward-watchdog.timer"
 	f.files[connection] = file{[]byte("connections {}\n"), 0o644}
 	f.files[key] = file{f.files[key].data, 0o644}
 	delete(f.files, timer)
 	f.writes, r.commands = nil, nil
 
 	var out bytes.Buffer
-	if err := onHome(f, r, &out).Install(p, settings); err != nil {
+	if _, err := onHome(f, r, &out).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
-	checkLines(t, "the files written", f.writes, []string{connection, timer, key})
+	checkLines(t, "the files written", f.writes, []string{Journal, connection, timer, key})
 	if got := f.files[key].mode; got != 0o600 {
 		t.Errorf("the key's mode is %04o, want 0600", got)
 	}
-	got := outputLines(t, out.String())
-	checkLines(t, "the output", got[:4], []string{"Updated " + connection, "Created " + timer,
-		"Updated " + key, "Left 9 of the 12 files as they were"})
-	for _, line := range r.ran() {
-		if restartsDaemon(line) {
-			t.Errorf("ran %s", line)
-		}
-	}
-}
-
-// A change to networkd's or strongSwan's own settings restarts that daemon alone.
-func TestTakeUp(t *testing.T) {
-	for _, test := range []struct {
-		changed  []string
-		networkd string
-		swan     string
-	}{
-		{nil, "networkctl reload", "systemctl start strongswan.service"},
-		{[]string{"/etc/systemd/network/25-ikeward0.network", "/etc/swanctl/conf.d/ikeward.conf",
-			"/etc/systemd/system/ikeward-watchdog.service"},
-			"networkctl reload", "systemctl start strongswan.service"},
-		{[]string{"/etc/systemd/networkd.conf.d/10-keep-vpn-routing.conf"},
-			"systemctl restart systemd-networkd.service", "systemctl start strongswan.service"},
-		{[]string{"/etc/strongswan.d/zz-ikeward.conf"},
-			"networkctl reload", "systemctl restart strongswan.service"},
-	} {
-		restart := &restarts{}
-		if err := (System{DryRun: true}).pend(restart, test.changed); err != nil {
-			t.Fatal(err)
-		}
-		var got []string
-		for _, command := range takeUp(restart.units) {
-			got = append(got, strings.Join(command, " "))
-		}
-		checkLines(t, strings.Join(test.changed, ", "), got, []string{
-			"systemctl daemon-reload",
-			test.networkd,
-			"systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
-			"systemctl restart ikeward-routing.service",
-			test.swan,
-			"swanctl --load-all --noprompt",
-			"systemctl start ikeward-watchdog.timer",
-		})
-	}
+	checkLines(t, "the output", outputLines(t, out.String()), []string{
+		"Updated " + connection, "Created " + timer, "Updated " + key,
+		"Left 9 of the 12 files as they were",
+		"Running systemctl daemon-reload, as " + timer + " changes",
+		"Running systemctl enable ikeward-routing.service strongswan.service " +
+			"ikeward-watchdog.timer, as " + timer + " changes",
+		"Running swanctl --load-all --noprompt, as " + connection + " changes",
+		"Running systemctl start ikeward-watchdog.timer, as " + timer + " changes",
+	})
 }
 
 // A profile of another name replaces the certificate and key of the one before, and install
@@ -175,23 +133,21 @@ func TestInstallStale(t *testing.T) {
 	installOn(t, f, r, newProfile(t, "before"))
 	p := newProfile(t, "after")
 	var out bytes.Buffer
-	if err := onHome(f, r, &out).Install(p, settings); err != nil {
+	if _, err := onHome(f, r, &out).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
 	stale := []string{"/etc/swanctl/x509/before-cert.pem", "/etc/swanctl/private/before-key.pem"}
-	checkLines(t, "the files removed", f.removes, stale)
+	checkLines(t, "the files removed", f.removes, append(stale, Journal))
 	paths := pathsOf(want(t, p))
 	// The connection names the certificate.
-	connection := "/etc/swanctl/conf.d/ikeward.conf"
-	checkLines(t, "the files written", f.writes, []string{Record, connection,
+	checkLines(t, "the files written", f.writes, []string{Journal, Record, connection,
 		"/etc/swanctl/x509/after-cert.pem", "/etc/swanctl/x509ca/ikeward-ca.pem",
 		"/etc/swanctl/private/after-key.pem", Record})
 	checkLines(t, "the files", f.paths(), slices.Sorted(slices.Values(append(paths, Record))))
 	if got, want := f.files[Record].data, recordOf(paths...); !bytes.Equal(got, want) {
 		t.Errorf("the record is\n%s\nwant\n%s", got, want)
 	}
-	got := outputLines(t, out.String())
-	checkLines(t, "the output", got[:7], []string{
+	checkLines(t, "the output", outputLines(t, out.String()), []string{
 		"Updated " + connection,
 		"Created /etc/swanctl/x509/after-cert.pem",
 		"Updated /etc/swanctl/x509ca/ikeward-ca.pem",
@@ -199,5 +155,7 @@ func TestInstallStale(t *testing.T) {
 		"Left 8 of the 12 files as they were",
 		"Removed " + stale[0],
 		"Removed " + stale[1],
+		"Updated " + Record,
+		"Running swanctl --load-all --noprompt, as " + stale[0] + " changes",
 	})
 }

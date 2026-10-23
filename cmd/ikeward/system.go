@@ -25,9 +25,11 @@ type system struct {
 	terminal terminal
 	files    install.Files
 	runner   install.Runner
-	// tunnel is strongSwan, network the kernel's addresses, links, rules and routes, and resolver
-	// the remote network's DNS server, asked directly. names is the system's resolver.
+	// tunnel is strongSwan, and charon strongSwan as install reads what it loaded. network is the
+	// kernel's addresses, links, rules and routes, and resolver the remote network's DNS server,
+	// asked directly. names is the system's resolver.
 	tunnel   status.Tunnel
+	charon   install.Charon
 	network  network
 	resolver status.Resolver
 	names    names

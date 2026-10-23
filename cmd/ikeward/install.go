@@ -24,14 +24,24 @@ values, as root:
     and ` + files.SettingsFile + `, which holds the remote network's values.
     ` + install.Record + ` lists them for uninstall, and install removes
     those it listed but no longer writes;
-  - reload systemd and networkd, and enable the routing's unit, strongSwan and
-    the watchdog's timer. Restart the routing's unit, which makes what is
-    missing of ikeward's rules and floors, and the NAT table anew, before
-    strongSwan starts, as routing --help says. Then load the connection.
-    networkd or strongSwan restarts where its own settings changed, as it
-    reads them only as it starts. Where install stops half way, a rerun
-    restarts the daemon all the same: ` + install.Pending + `
-    names it from before its settings change until install ends.
+  - take them up in steps: reload systemd and networkd, and enable the
+    routing's unit, strongSwan and the watchdog's timer. Restart the routing's
+    unit, which makes what is missing of ikeward's rules and floors, and the
+    NAT table anew, before strongSwan starts, as routing --help says. Then
+    load the connection, and start the watchdog's timer. networkd or
+    strongSwan restarts where its own settings changed, as it reads them only
+    as it starts.
+
+A step runs only where it is due, and install says why. It is due where:
+
+  - install changes a file the step reads;
+  - an earlier install that stopped half way owes it, as
+    ` + install.Journal + ` names the steps due from before the files
+    change until install ends;
+  - or a probe finds that the system needs it: a unit disabled, stopped or
+    changed on disk, the link ` + files.Link + ` or its own address missing, a failing
+    rule, floor, NAT or DNS check, as status --help says, or strongSwan
+    lacking the connection or its certificates.
 
 The profile's files are those ikev2setup.sh writes, named alike, each given
 by its path:
@@ -119,7 +129,8 @@ func newInstall(sys system) *cobra.Command {
 			if err := sys.clearOfServer(command, p.Server, settings.Floors); err != nil {
 				return err
 			}
-			return sys.installer(command, dryRun).Install(p, settings)
+			_, err = sys.installer(command, dryRun).Install(command.Context(), p, settings)
+			return err
 		},
 	}
 	command.Flags().StringVar(&named.p12, "p12", "", "the client profile's .p12 `FILE`")
@@ -140,5 +151,5 @@ func newInstall(sys system) *cobra.Command {
 // installer is install's and uninstall's view of sys, saying what they do on command's output.
 func (s system) installer(command *cobra.Command, dryRun bool) install.System {
 	return install.System{Files: s.files, Runner: s.runner, Tables: s.nat, Network: s.network,
-		Out: command.OutOrStdout(), DryRun: dryRun}
+		Charon: s.charon, Out: command.OutOrStdout(), DryRun: dryRun}
 }

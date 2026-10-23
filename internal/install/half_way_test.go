@@ -25,7 +25,7 @@ func TestInstallHalfWay(t *testing.T) {
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
 	paths := pathsOf(want(t, p))
 	f.failWrite[paths[3]] = errors.New("no space left on device")
-	err := onHome(f, r, &bytes.Buffer{}).Install(p, settings)
+	_, err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings)
 	if want := "cannot write " + paths[3] + ": no space left on device"; err == nil ||
 		err.Error() != want {
 		t.Fatalf("Install: %v, want %s", err, want)
@@ -38,9 +38,9 @@ func TestInstallHalfWay(t *testing.T) {
 	}
 }
 
-// Where install stops once it has written networkd's or strongSwan's own settings, a rerun finds
-// them as they should be. It restarts the daemons all the same, as Pending lists them, and
-// Pending goes as it ends. Pending keeps those an earlier install left in it.
+// Where install stops half way, Journal lists the steps it owes, and a rerun takes them all,
+// though the files are then as they should be. Journal goes as the rerun ends. Pending, from
+// v0.2.0, owes every step, and Journal keeps them too.
 func TestInstallRerun(t *testing.T) {
 	p := newProfile(t, "client")
 	for _, test := range []struct {
@@ -67,22 +67,26 @@ func TestInstallRerun(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			f, r := newFakeFiles(), newFakeRunner(Packages...)
 			test.setUp(t, f, r)
-			if err := onHome(f, r, &bytes.Buffer{}).Install(p, settings); err == nil {
+			if _, err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings); err == nil {
 				t.Fatal("Install did not fail")
 			}
-			if got := f.files[Pending].data; !bytes.Equal(got, pendingOf(networkd, StrongSwan)) {
-				t.Errorf("Pending is\n%s", got)
+			if got := f.files[Journal].data; !bytes.Equal(got, journalOf(restartBoth...)) {
+				t.Errorf("Journal is\n%s", got)
 			}
 			f.failWrite, r.fail, r.commands = map[string]error{}, map[string]error{}, nil
 			var out bytes.Buffer
-			if err := onHome(f, r, &out).Install(p, settings); err != nil {
+			if _, err := onHome(f, r, &out).Install(t.Context(), p, settings); err != nil {
 				t.Fatal(err)
 			}
 			checkLines(t, "the commands", r.ran(), restartBoth)
-			note := "An earlier install stopped before it ended: " + Pending + " lists " +
-				networkd + " and " + StrongSwan + " to restart\n"
-			if _, left := f.files[Pending]; left || !strings.Contains(out.String(), note) {
-				t.Errorf("Pending is left %v, or the output lacks %q:\n%s", left, note, out.String())
+			for _, name := range []string{Journal, Pending} {
+				if _, left := f.files[name]; left {
+					t.Errorf("%s is left", name)
+				}
+			}
+			note := "Running systemctl restart strongswan.service, as " + owedWhy + "\n"
+			if !strings.Contains(out.String(), note) {
+				t.Errorf("the output lacks %q:\n%s", note, out.String())
 			}
 		})
 	}
@@ -90,7 +94,7 @@ func TestInstallRerun(t *testing.T) {
 
 // An older version's drop-ins of networkd and strongSwan, which the record lists, go as install
 // runs. Where install stops after that, a rerun finds them gone, and restarts both daemons all the
-// same, as Pending lists them.
+// same, as Journal lists them.
 func TestInstallRerunStale(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
@@ -100,20 +104,22 @@ func TestInstallRerunStale(t *testing.T) {
 		f.files[path] = file{[]byte("# An old drop-in\n"), 0o644}
 	}
 	f.files[Record] = file{recordOf(append(pathsOf(want(t, p)), old...)...), 0o644}
-	r.fail["systemctl daemon-reload"] = errors.New("exit status 1")
-	err := onHome(f, r, &bytes.Buffer{}).Install(p, settings)
-	if want := "systemctl daemon-reload: exit status 1"; err == nil || err.Error() != want {
+	restarts := []string{"systemctl restart systemd-networkd.service",
+		"systemctl restart strongswan.service"}
+	r.fail[restarts[0]] = errors.New("exit status 1")
+	_, err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings)
+	if want := restarts[0] + ": exit status 1"; err == nil || err.Error() != want {
 		t.Fatalf("Install: %v, want %s", err, want)
 	}
 	checkLines(t, "the files removed", f.removes, old)
-	if got := f.files[Pending].data; !bytes.Equal(got, pendingOf(networkd, StrongSwan)) {
-		t.Errorf("Pending is\n%s", got)
+	if got := f.files[Journal].data; !bytes.Equal(got, journalOf(restarts...)) {
+		t.Errorf("Journal is\n%s", got)
 	}
 
 	f.removes, r.fail, r.commands = nil, map[string]error{}, nil
-	if err := onHome(f, r, &bytes.Buffer{}).Install(p, settings); err != nil {
+	if _, err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
-	checkLines(t, "the files removed", f.removes, []string{Pending})
-	checkLines(t, "the commands", r.ran(), restartBoth)
+	checkLines(t, "the files removed", f.removes, []string{Journal})
+	checkLines(t, "the commands", r.ran(), restarts)
 }
