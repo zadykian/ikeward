@@ -44,11 +44,11 @@ type resolvedScope struct {
 // says.
 const DNSCheck = "DNS"
 
-// dns is the DNS check: resolved sends lookups of the settings' domains, and only those, on
+// CheckDNS is the DNS check: resolved sends lookups of the settings' domains, and only those, on
 // files.Link to their resolver, as networkd sets it up. The link's own address, files.LinkULA,
 // must be on it too, whether the tunnel is up or not: it keeps those lookups there while the
 // tunnel is down.
-func (s System) dns(settings files.Settings) Result {
+func (s System) CheckDNS(settings files.Settings) Result {
 	r := Result{Name: DNSCheck}
 	args := []string{"--json=short", "status", files.Link}
 	out, err := s.Runner.Run("resolvectl", args...)

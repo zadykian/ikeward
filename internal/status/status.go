@@ -175,16 +175,16 @@ func (s System) Check(ctx context.Context) []Result {
 	// The address is checked against the one the server assigned, and the routes against the
 	// ranges it granted. The resolver is asked where none of the five before it failed, whatever
 	// the last three find.
-	results := []Result{t.ikeSA(), t.childSA(), s.address(t), s.rule(), s.route(t)}
+	results := []Result{t.ikeSA(), t.childSA(), s.address(t), s.CheckRule(), s.route(t)}
 	settings, err := routing.ReadSettings(s.Files)
 	if err != nil {
 		for _, name := range []string{ResolverCheck, DNSCheck, FloorCheck} {
 			results = append(results, Result{Name: name, Detail: err.Error(), Err: err})
 		}
-		return append(results, s.nat())
+		return append(results, s.CheckNAT())
 	}
-	return append(results, s.resolver(ctx, settings, Failed(results)), s.dns(settings),
-		s.floor(settings), s.nat())
+	return append(results, s.resolver(ctx, settings, Failed(results)), s.CheckDNS(settings),
+		s.CheckFloor(settings), s.CheckNAT())
 }
 
 // address is the address check: the address the server assigned is on files.Link, where

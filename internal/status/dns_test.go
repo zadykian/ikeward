@@ -57,7 +57,7 @@ func TestDNS(t *testing.T) {
 	} {
 		f := healthy()
 		f.runner.out, f.runner.err = test.out, test.err
-		if got := f.system().dns(testSettings).String(); got != test.want {
+		if got := f.system().CheckDNS(testSettings).String(); got != test.want {
 			t.Errorf("%s:\n%s\nwant:\n%s", test.name, got, test.want)
 		}
 	}
@@ -72,12 +72,12 @@ func TestDNSSettings(t *testing.T) {
 	two := testSettings
 	two.DNS, two.Domains = netip.MustParseAddr("10.1.2.3"), []string{"example.test", "other.test"}
 	want := "ok    DNS       resolved sends ~example.test ~other.test lookups on ikeward0 to 10.1.2.3"
-	if got := f.system().dns(two).String(); got != want {
+	if got := f.system().CheckDNS(two).String(); got != want {
 		t.Errorf("%s, want %s", got, want)
 	}
 	two.Domains = append(two.Domains, "example.org")
 	want = "FAIL  DNS       ikeward0: it has no domain ~example.org"
-	if got := f.system().dns(two).String(); got != want {
+	if got := f.system().CheckDNS(two).String(); got != want {
 		t.Errorf("%s, want %s", got, want)
 	}
 }
@@ -114,7 +114,8 @@ func TestDNSOwnAddress(t *testing.T) {
 	} {
 		f := healthy()
 		f.network.addrs["ikeward0"] = test.addrs
-		if got := f.system().dns(testSettings); got.OK != test.ok || !test.ok && got.String() != ownGone {
+		got := f.system().CheckDNS(testSettings)
+		if got.OK != test.ok || !test.ok && got.String() != ownGone {
 			t.Errorf("%s: %s", test.name, got)
 		}
 	}

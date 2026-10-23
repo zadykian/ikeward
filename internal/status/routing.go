@@ -14,10 +14,10 @@ import (
 // does not mend it, and the watchdog makes them again.
 const RuleCheck = "rule"
 
-// rule is the rule check: the rules hold routing.Rules, the server's own networks before the
+// CheckRule is the rule check: the rules hold routing.Rules, the server's own networks before the
 // remote network's. No other rule looks up files.Table, as one before them would put the remote
 // network first. Without the rules, the remote network's traffic would take the default route.
-func (s System) rule() Result {
+func (s System) CheckRule() Result {
 	r := Result{Name: RuleCheck}
 	rules, err := s.Network.Rules()
 	if err != nil {
@@ -128,11 +128,11 @@ func unicast(routes []Route, dst netip.Prefix) []string {
 // does not mend them, and the watchdog makes them again.
 const FloorCheck = "floor"
 
-// floor is the floor check: at routing.FloorMetric, files.Table makes each of the Floors
+// CheckFloor is the floor check: at routing.FloorMetric, files.Table makes each of the Floors
 // unreachable, whether the tunnel is up or not. Those are the settings' and each range updown
 // learned. While no route through files.Link takes them, the floors keep their traffic off the
 // default route. The line ends with the ranges routing.Learned records, and those passed over.
-func (s System) floor(settings files.Settings) Result {
+func (s System) CheckFloor(settings files.Settings) Result {
 	r := Result{Name: FloorCheck}
 	learned, err := routing.ReadLearned(s.Files)
 	if err != nil {

@@ -12,10 +12,10 @@ import (
 // restart of strongSwan does not mend it, and the watchdog makes the table again.
 const NATCheck = "NAT"
 
-// nat is the NAT check: routing.NATTable holds its chain and rule alone, and the line says how
+// CheckNAT is the NAT check: routing.NATTable holds its chain and rule alone, and the line says how
 // many connections took the rule. Only a routing.Missing says the rule is gone: another error, as
 // nftables refusing a user other than root, leaves the table maybe in place.
-func (s System) nat() Result {
+func (s System) CheckNAT() Result {
 	r := Result{Name: NATCheck}
 	connections, err := s.NAT.Connections()
 	if err != nil {
