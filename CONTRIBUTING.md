@@ -29,8 +29,9 @@ documentation ranges and `example.test`. Replace the real ones in a log before y
 - Based on `main`'s head. Rebase it where `main` moves, rather than merge `main` into it.
 - A change of behaviour goes together across the code and its comments, the help, the README, its
   page in `docs/` and the tests.
-- Prose follows [the writing policy](.claude/rules/writing.md): sentences of 30 words at most, lines
-  of 100 columns, and files of 300 lines.
+- Prose follows [the writing policy][writing], with ikeward's part in
+  [writing.md](.claude/rules/writing.md): sentences of 30 words at most, lines of 100 columns, and
+  files of 300 lines.
 
 With Claude Code, `CLAUDE.md`, `.claude/` and the skills of [zadykian/skills][skills] give Claude
 the same rules. That marketplace's lint plugin runs the gates as Claude works.
@@ -55,4 +56,5 @@ ikeward is under the [MIT license](LICENSE). A contribution is under it too.
 [commits]: https://www.conventionalcommits.org/en/v1.0.0/
 [atomic]: https://github.com/zadykian/skills/blob/main/skills/atomic-commits/SKILL.md
 [skills]: https://github.com/zadykian/skills
+[writing]: https://github.com/zadykian/skills/blob/main/skills/writing/SKILL.md
 [covenant]: https://www.contributor-covenant.org/version/2/1/code_of_conduct/

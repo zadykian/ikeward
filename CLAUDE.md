@@ -267,10 +267,10 @@ Review checks the rest:
 
 ## Where else to look
 
-- `.claude/rules/`, each loaded with the files it covers: the writing policy in
-  [writing.md](.claude/rules/writing.md), what each document holds in
-  [docs.md](.claude/rules/docs.md), and the tests' invariants and files in
-  [tests.md](.claude/rules/tests.md).
+- `.claude/rules/`, each loaded with the files it covers. [writing.md](.claude/rules/writing.md)
+  holds what ikeward adds to the `writing` skill's policy, and [docs.md](.claude/rules/docs.md)
+  what each document holds. [tests.md](.claude/rules/tests.md) holds the tests' invariants and
+  files.
 - `.claude/agents/doc-editor.md`: rewrites prose to the writing policy and Vale's rules, keeping
   every fact and link.
 - The marketplace's skills, which ikeward uses as they are: `/flow:issue` plans and files an issue.
