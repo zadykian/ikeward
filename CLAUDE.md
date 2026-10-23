@@ -13,9 +13,10 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
 
 ## Layout
 
-- `cmd/ikeward`: the command line, a file per command with its help text, and `main`. `install`
-  refuses a `--floor` that `routing.Refusal` refuses with the VPN server's address as `install`
-  finds it: the profile's, or what the system's resolver gives for its name.
+- `cmd/ikeward`: the command line, a file per command with its help text, `install`'s flags in
+  `flags.go`, and `main`. `install` refuses a `--floor` that `routing.Refusal` refuses with the VPN
+  server's address as `install` finds it: the profile's, or what the system's resolver gives for
+  its name.
 - `internal/...`: the rest, a package per concern, each reaching the system through small
   interfaces.
 - `internal/profile`: reads the profile's files, as `docs/profile.md` says: the `.sswan`, the
