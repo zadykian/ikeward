@@ -44,7 +44,8 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
 - `internal/files/testdata` holds the files `Generate` must write, compared byte for byte.
   `go test ./internal/files -update` rewrites them.
 - The command line's tests check each exit status. A mistake on the command line exits 2, a
-  failure of the watchdog's own 3, and any other error 1.
+  failure of the watchdog's own 3, a change that `install --exit-code` reports 4, and any other
+  error 1.
 
 ## Where a test goes
 
@@ -57,7 +58,7 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
   their `TestMain` and `TestRunErrors`, a test of `run`.
 - `cmd/ikeward`: `main_test.go`, the version, the help, mistakes and exit statuses.
   `install_test.go`, install, its dry run, its errors, and its refusal to run as another program.
-  `steps_test.go`, install again: the steps due and `--all-steps`.
+  `steps_test.go`, install again: the steps due, `--all-steps`, and `--exit-code`'s statuses.
   `flags_test.go`, install's flags, their mistakes, and the floors that hold the VPN server's
   address. `password_test.go`, the `.p12`'s password. `status_test.go`, `watchdog_test.go`,
   `updown_test.go` and `routing_test.go` cover their commands, and `fake_test.go` the fake system.

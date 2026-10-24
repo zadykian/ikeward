@@ -90,7 +90,12 @@ network, as ufw route allow in on wg0 out on ` + files.Link + ` does.
 but for those only root may read, and changes nothing.
 
 --all-steps takes every step, due or not, as earlier versions did. It is for a
-change no probe sees, such as a connection loaded by hand under the same name.`
+change no probe sees, such as a connection loaded by hand under the same name.
+
+--exit-code has install exit 4 where it installed a package, wrote or removed
+a file, or took a step, or in a dry run would, and 0 where it changed nothing.
+Without it, install exits 0 where it succeeds. Either way, it exits 1 where it
+fails, and 2 for a mistake on the command line.`
 
 // changesSettings is what install and uninstall do that calls for root.
 const changesSettings = "changes the system's settings"
@@ -98,9 +103,9 @@ const changesSettings = "changes the system's settings"
 // installFlags are install's flags: the profile's files, the remote network's values, and how
 // install runs.
 type installFlags struct {
-	named            profileFlags
-	given            flags
-	dryRun, allSteps bool
+	named                      profileFlags
+	given                      flags
+	dryRun, allSteps, exitCode bool
 }
 
 // newInstall is ikeward install.
@@ -109,13 +114,16 @@ func newInstall(sys system) *cobra.Command {
 	command := &cobra.Command{
 		Use: "install --p12 FILE --sswan FILE [--mobileconfig FILE] --dns ADDR\n" +
 			"      --domain NAME... [--probe NAME] [--floor CIDR]... [--dry-run]\n" +
-			"      [--all-steps]",
+			"      [--all-steps] [--exit-code]",
 		Short:                 "Install the VPN from the client profile",
 		Long:                  installLong,
 		Args:                  noArgs,
 		DisableFlagsInUseLine: true,
 		RunE: func(command *cobra.Command, _ []string) error {
-			_, err := sys.install(command, f)
+			changed, err := sys.install(command, f)
+			if err == nil && changed && f.exitCode {
+				return changedError{}
+			}
 			return err
 		},
 	}
@@ -133,6 +141,8 @@ func newInstall(sys system) *cobra.Command {
 		"a `CIDR` kept off the uplink from boot on, once for each")
 	command.Flags().BoolVar(&f.dryRun, "dry-run", false, "print the changes, and change nothing")
 	command.Flags().BoolVar(&f.allSteps, "all-steps", false, "take every step, due or not")
+	command.Flags().BoolVar(&f.exitCode, "exit-code", false,
+		"exit 4 where install changed the system, or would")
 	return command
 }
 

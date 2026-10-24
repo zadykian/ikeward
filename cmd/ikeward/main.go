@@ -58,19 +58,30 @@ func (e usageError) Error() string {
 // status 1 as success, which this must not be.
 type watchdogError struct{ error }
 
-// exitStatus is 2 for a mistake on the command line, 3 for a failure of the watchdog's own, and 1
-// for any other error.
+// changedError says that install changed the system, or in a dry run would, which --exit-code has
+// it tell by its exit status alone. That marks no failure, and main prints nothing of it.
+type changedError struct{}
+
+func (changedError) Error() string { return "install changed the system, or would" }
+
+// exitStatus is 2 for a mistake on the command line, 3 for a failure of the watchdog's own, 4 for
+// a changedError, and 1 for any other error.
 func exitStatus(err error) int {
 	switch {
 	case errors.As(err, &usageError{}):
 		return 2
 	case errors.As(err, &watchdogError{}):
 		return 3
+	case errors.As(err, &changedError{}):
+		return 4
 	}
 	return 1
 }
 
-// message is what main prints of err.
+// message is what main prints of err: nothing for a changedError, which is no failure.
 func message(err error) string {
+	if errors.As(err, &changedError{}) {
+		return ""
+	}
 	return "ikeward: " + err.Error() + "\n"
 }

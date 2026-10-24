@@ -140,7 +140,7 @@ func TestMistakes(t *testing.T) {
 	}
 }
 
-// Each error has its exit status, and main prints each.
+// Each error has its exit status, and main prints each but a changedError, which is no failure.
 func TestExitStatus(t *testing.T) {
 	for _, test := range []struct {
 		err     error
@@ -151,6 +151,7 @@ func TestExitStatus(t *testing.T) {
 		{usageError{errors.New("mistaken"), commandLine(system{})}, 2,
 			"ikeward: mistaken (see ikeward --help)\n"},
 		{watchdogError{errors.New("cannot restart")}, 3, "ikeward: cannot restart\n"},
+		{changedError{}, 4, ""},
 	} {
 		if got := exitStatus(test.err); got != test.status {
 			t.Errorf("%v: exit status %d, want %d", test.err, got, test.status)
