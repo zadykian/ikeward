@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// A dry run changes nothing, runs nothing but dpkg-query, and prints the files as diffs, but
+// A dry run changes nothing, runs nothing but its queries, and prints the files as diffs, but
 // for the key. It says why each step is due.
 func TestInstallDryRun(t *testing.T) {
 	p := newProfile(t, "client")
@@ -80,7 +80,6 @@ func TestInstallDryRunChanges(t *testing.T) {
 		"         # login. swanctl's default, 1, gives up after one: 165 s of retransmits.",
 		"Would update /etc/swanctl/private/client-key.pem, which only root may read: not shown",
 		"Left 10 of the 12 files as they were",
-		"Would run systemctl daemon-reload",
 		"Would run networkctl reload",
 		"Would run systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
 		"Would run systemctl restart ikeward-routing.service",

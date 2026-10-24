@@ -121,5 +121,7 @@ func TestInstallRerunStale(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkLines(t, "the files removed", f.removes, []string{Journal})
-	checkLines(t, "the commands", r.ran(), restartBoth)
+	checkLines(t, "the commands", r.ran(), []string{restarts[0], restartBoth[2],
+		"systemctl restart ikeward-routing.service", restarts[1], "swanctl --load-all --noprompt",
+		"systemctl start ikeward-watchdog.timer"})
 }

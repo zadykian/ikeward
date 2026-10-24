@@ -71,20 +71,23 @@ func (f *fakeFiles) paths() []string {
 }
 
 // fakeRunner runs no command: it records each, answers dpkg-query from installed and systemctl
-// list-unit-files from noUnit, and fails those that fail names.
+// list-unit-files from noUnit, and fails those that fail names. systemctl show says each unit is
+// as install leaves it, but where states names a property.
 type fakeRunner struct {
 	commands []string
 	// installed are the packages dpkg-query reports installed.
 	installed map[string]bool
 	// noUnit are the units systemd lacks.
 	noUnit map[string]bool
+	// states are properties of units, as "UNIT PROPERTY", and their values.
+	states map[string]string
 	// fail fails the command whose line it names, and failOnce the first time it runs.
 	fail, failOnce map[string]error
 }
 
 func newFakeRunner(installed ...string) *fakeRunner {
 	r := &fakeRunner{installed: map[string]bool{}, noUnit: map[string]bool{},
-		fail: map[string]error{}, failOnce: map[string]error{}}
+		fail: map[string]error{}, failOnce: map[string]error{}, states: map[string]string{}}
 	for _, name := range installed {
 		r.installed[name] = true
 	}
@@ -108,6 +111,9 @@ func (r *fakeRunner) Run(name string, args ...string) (string, error) {
 		}
 		return unit + " enabled disabled\n", nil
 	}
+	if name == "systemctl" && args[0] == "show" {
+		return r.show(args[len(args)-1]), nil
+	}
 	if name == "dpkg-query" {
 		pkg := args[len(args)-1]
 		switch {
@@ -122,12 +128,32 @@ func (r *fakeRunner) Run(name string, args ...string) (string, error) {
 	return "", nil
 }
 
-// ran is r's commands but the queries: dpkg-query's and systemctl list-unit-files'.
+// show is what systemctl show prints of unit: what states names, else the unit as install leaves
+// it, and the watchdog's service as its timer leaves it between runs.
+func (r *fakeRunner) show(unit string) string {
+	values := []string{"LoadState=loaded", "ActiveState=active", "UnitFileState=enabled",
+		"NeedDaemonReload=no"}
+	if unit == Service {
+		values[1], values[2] = "ActiveState=inactive", "UnitFileState=static"
+	}
+	var out strings.Builder
+	for _, v := range values {
+		key, _, _ := strings.Cut(v, "=")
+		if state, ok := r.states[unit+" "+key]; ok {
+			v = key + "=" + state
+		}
+		out.WriteString(v + "\n")
+	}
+	return out.String()
+}
+
+// ran is r's commands but the queries: dpkg-query's, and systemctl list-unit-files' and show's.
 func (r *fakeRunner) ran() []string {
 	var ran []string
 	for _, line := range r.commands {
 		if !strings.HasPrefix(line, "dpkg-query ") &&
-			!strings.HasPrefix(line, "systemctl list-unit-files ") {
+			!strings.HasPrefix(line, "systemctl list-unit-files ") &&
+			!strings.HasPrefix(line, "systemctl show ") {
 			ran = append(ran, line)
 		}
 	}

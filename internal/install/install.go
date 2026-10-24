@@ -157,7 +157,7 @@ func (s System) Install(p *profile.Profile, settings files.Settings) error {
 	if err != nil {
 		return err
 	}
-	plan := s.plan(u.changed(), owed)
+	plan := s.plan(newProbes(s), u.changed(), owed)
 	// Journal lists the steps before any file changes, so that a rerun takes them where this run
 	// stops half way.
 	if err := s.writeJournal(owed, plan); err != nil {

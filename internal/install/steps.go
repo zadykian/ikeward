@@ -14,9 +14,9 @@ const (
 	networkd = "systemd-networkd.service"
 )
 
-// step is a command that has the system take up install's files. A step is due where install
-// changes a file it reads, or an earlier install owes it. Install takes each on every run all the
-// same, and so mends an install that stopped half way.
+// step is a command that has the system take up install's files. Install takes it only where due:
+// where it changes a file the step reads, an earlier install owes it, or its probe finds the
+// system needs it. A step with no probe runs on every install.
 type step struct {
 	command []string
 	// reads are the files the step takes up: paths, and directories that end in a slash.
@@ -24,11 +24,14 @@ type step struct {
 	// restart replaces command where install changes a file of own: a daemon's own settings, which
 	// it reads only as it starts.
 	restart, own []string
+	// probe says why the system needs the step, or nothing where it does not.
+	probe func(*probes) string
 }
 
 // steps are install's steps, in the order they run.
 var steps = []step{
-	{command: []string{"systemctl", "daemon-reload"}, reads: []string{unitDir}},
+	{command: []string{"systemctl", "daemon-reload"}, reads: []string{unitDir},
+		probe: (*probes).reloaded},
 	{command: []string{"networkctl", "reload"}, reads: []string{"/etc/systemd/network/"},
 		restart: []string{"systemctl", "restart", networkd},
 		own:     []string{"/etc/systemd/networkd.conf.d/"}},
@@ -60,17 +63,19 @@ type plan []*due
 // owedWhy is why a step is due that Journal or Pending owes.
 const owedWhy = "an earlier install stopped before it ended"
 
-// plan works out the steps due: those owed names, and those that read a file of changed.
-func (System) plan(changed []string, owed owed) plan {
+// plan works out the steps due: those owed names, those that read a file of changed, and those
+// whose probe finds that the system needs them.
+func (System) plan(p *probes, changed []string, owed owed) plan {
 	out := make(plan, len(steps))
 	for i, st := range steps {
-		out[i] = st.due(changed, owed)
+		out[i] = st.due(p, changed, owed)
 	}
 	return out
 }
 
-// due is why st is due, or nil for a step not due.
-func (st step) due(changed []string, owed owed) *due {
+// due is why st is due, or nil for a step not due. A probe runs only where nothing else makes st
+// due.
+func (st step) due(p *probes, changed []string, owed owed) *due {
 	if st.restart != nil {
 		if owed.has(st.restart) {
 			return &due{why: owedWhy, restart: true}
@@ -84,6 +89,12 @@ func (st step) due(changed []string, owed owed) *due {
 	}
 	if path, ok := changedIn(changed, st.reads); ok {
 		return &due{why: path + " changes"}
+	}
+	if st.probe == nil {
+		return nil
+	}
+	if why := st.probe(p); why != "" {
+		return &due{why: why}
 	}
 	return nil
 }
@@ -112,12 +123,15 @@ func (p plan) lines() []string {
 	return lines
 }
 
-// take runs the steps, in order, saying why each that plan holds due is, or in a dry run says it
-// would. A step not due runs all the same, with no reason given.
+// take runs the steps that plan holds due, in order, saying why each is, or in a dry run says it
+// would. A step with no probe runs all the same, with no reason given.
 func (s System) take(out *printer, plan plan) error {
 	for i, d := range plan {
-		if d == nil {
+		if d == nil && steps[i].probe == nil {
 			d = &due{}
+		}
+		if d == nil {
+			continue
 		}
 		if err := s.runFor(out, steps[i].commandFor(d), d.why); err != nil {
 			return err

@@ -74,8 +74,8 @@ func TestInstall(t *testing.T) {
 	}
 }
 
-// Run again, install writes nothing and installs nothing, but reloads, loads and enables all
-// the same, which mends an install that stopped half way. Owing nothing, it restarts nothing.
+// Run again on the system it set up, install writes nothing and installs nothing. It takes no
+// step that a probe finds not due, but those with no probe run all the same.
 func TestInstallAgain(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
@@ -88,7 +88,6 @@ func TestInstallAgain(t *testing.T) {
 		t.Errorf("wrote %q and removed %q", f.writes, f.removes)
 	}
 	commands := []string{
-		"systemctl daemon-reload",
 		"networkctl reload",
 		"systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
 		"systemctl restart ikeward-routing.service",
