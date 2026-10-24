@@ -60,7 +60,7 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
   `flags_test.go`, install's flags, their mistakes, and the floors that hold the VPN server's
   address. `password_test.go`, the `.p12`'s password. `status_test.go`, `watchdog_test.go`,
   `updown_test.go` and `routing_test.go` cover their commands, and `fake_test.go` the fake system.
-  `helpers_test.go` writes the profile's files and gives install's arguments.
+  `helpers_test.go` writes the profile's files, gives install's arguments, and reads what it wrote.
 - `internal/install`: `install_test.go`, a run, again and with changes; `half_way_test.go`, a stop
   half way and the rerun. `dry_run_test.go`, `--dry-run`; `failures_test.go`, failed commands and
   output; `uninstall_test.go`, `uninstall`; `diff_test.go`, the diffs.

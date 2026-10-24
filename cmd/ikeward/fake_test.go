@@ -6,8 +6,6 @@ import (
 	"errors"
 	"io/fs"
 	"net/netip"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -224,45 +222,6 @@ func newFakeSystem(t *testing.T, stdin string) *fakeSystem {
 // settings is files.SettingsFile as install writes it with installArgs' values.
 const settings = "dns 192.0.2.10\ndomain example.test\nprobe example.test\n" +
 	"floor 10.88.0.0/16\n"
-
-// installedRoot is a temporary root directory where install wrote files.SettingsFile.
-func installedRoot(t *testing.T) string {
-	t.Helper()
-	root := t.TempDir()
-	if err := host.Root(root).Write(files.SettingsFile, []byte(settings), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	return root
-}
-
-// installed are the files under root, each as the absolute path it stands for, sorted.
-func (f *fakeSystem) installed(t *testing.T) []string {
-	t.Helper()
-	var paths []string
-	err := filepath.WalkDir(f.root, func(name string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
-			return err
-		}
-		rel, err := filepath.Rel(f.root, name)
-		paths = append(paths, "/"+filepath.ToSlash(rel))
-		return err
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	slices.Sort(paths)
-	return paths
-}
-
-// mode is the mode of the file at path under root.
-func (f *fakeSystem) mode(t *testing.T, path string) fs.FileMode {
-	t.Helper()
-	info, err := os.Stat(filepath.Join(f.root, path))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return info.Mode().Perm()
-}
 
 // failingWriter fails every write.
 type failingWriter struct{}
