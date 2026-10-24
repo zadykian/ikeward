@@ -15,8 +15,8 @@ const (
 
 // On a system without the VPN, install installs the missing packages, writes every file and
 // the record, then takes every step, as each reads a file that is new. networkd and strongSwan
-// restart, whose settings are new. Pending lists them from before their settings are written
-// until install ends.
+// restart, whose settings are new. Journal lists the steps from before a file is written until
+// install ends.
 func TestInstall(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner("strongswan", "strongswan-swanctl")
@@ -27,8 +27,8 @@ func TestInstall(t *testing.T) {
 
 	files := want(t, p)
 	paths := pathsOf(files)
-	checkLines(t, "the files written", f.writes, append([]string{Pending, Record}, paths...))
-	checkLines(t, "the files removed", f.removes, []string{Pending})
+	checkLines(t, "the files written", f.writes, append([]string{Journal, Record}, paths...))
+	checkLines(t, "the files removed", f.removes, []string{Journal})
 	for _, want := range files {
 		got := f.files[want.Path]
 		if !bytes.Equal(got.data, want.Data) || got.mode != want.Mode {
@@ -75,7 +75,7 @@ func TestInstall(t *testing.T) {
 }
 
 // Run again, install writes nothing and installs nothing, but reloads, loads and enables all
-// the same, which mends an install that stopped half way. Without Pending, it restarts nothing.
+// the same, which mends an install that stopped half way. Owing nothing, it restarts nothing.
 func TestInstallAgain(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
@@ -122,7 +122,7 @@ func TestInstallChanges(t *testing.T) {
 	if err := onHome(f, r, &out).Install(p, settings); err != nil {
 		t.Fatal(err)
 	}
-	checkLines(t, "the files written", f.writes, []string{connection, timer, key})
+	checkLines(t, "the files written", f.writes, []string{Journal, connection, timer, key})
 	if got := f.files[key].mode; got != 0o600 {
 		t.Errorf("the key's mode is %04o, want 0600", got)
 	}
@@ -151,10 +151,10 @@ func TestInstallStale(t *testing.T) {
 		t.Fatal(err)
 	}
 	stale := []string{"/etc/swanctl/x509/before-cert.pem", "/etc/swanctl/private/before-key.pem"}
-	checkLines(t, "the files removed", f.removes, stale)
+	checkLines(t, "the files removed", f.removes, append(stale, Journal))
 	paths := pathsOf(want(t, p))
 	// The connection names the certificate.
-	checkLines(t, "the files written", f.writes, []string{Record, connection,
+	checkLines(t, "the files written", f.writes, []string{Journal, Record, connection,
 		"/etc/swanctl/x509/after-cert.pem", "/etc/swanctl/x509ca/ikeward-ca.pem",
 		"/etc/swanctl/private/after-key.pem", Record})
 	checkLines(t, "the files", f.paths(), slices.Sorted(slices.Values(append(paths, Record))))

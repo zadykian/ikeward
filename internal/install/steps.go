@@ -15,8 +15,8 @@ const (
 )
 
 // step is a command that has the system take up install's files. A step is due where install
-// changes a file it reads, or Pending owes its daemon's restart. Install takes each on every run
-// all the same, and so mends an install that stopped half way.
+// changes a file it reads, or an earlier install owes it. Install takes each on every run all the
+// same, and so mends an install that stopped half way.
 type step struct {
 	command []string
 	// reads are the files the step takes up: paths, and directories that end in a slash.
@@ -57,7 +57,7 @@ type due struct {
 // plan holds why each of steps is due, in turn, or nil for a step not due.
 type plan []*due
 
-// owedWhy is why a step is due that Pending owes.
+// owedWhy is why a step is due that Journal or Pending owes.
 const owedWhy = "an earlier install stopped before it ended"
 
 // plan works out the steps due: those owed names, and those that read a file of changed.
@@ -79,6 +79,9 @@ func (st step) due(changed []string, owed owed) *due {
 			return &due{why: path + " changes", restart: true}
 		}
 	}
+	if owed.has(st.command) {
+		return &due{why: owedWhy}
+	}
 	if path, ok := changedIn(changed, st.reads); ok {
 		return &due{why: path + " changes"}
 	}
@@ -91,6 +94,11 @@ func (st step) commandFor(d *due) []string {
 		return st.restart
 	}
 	return st.command
+}
+
+// due is whether any step is due.
+func (p plan) due() bool {
+	return slices.ContainsFunc(p, func(d *due) bool { return d != nil })
 }
 
 // lines are the commands of the steps due, each as a line.

@@ -122,8 +122,9 @@ func TestInstallDryRunStale(t *testing.T) {
 	})
 }
 
-// Where Pending lists a daemon, a dry run says it would restart it, as an earlier install owes
-// it, though its settings are as they should be. Pending stays.
+// Pending, which v0.2.0 wrote, owes every step, as v0.2.0 took them all. Where it lists a daemon,
+// a dry run says it would restart it too, though its settings are as they should be. Pending
+// stays.
 func TestInstallDryRunPending(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
@@ -139,16 +140,19 @@ func TestInstallDryRunPending(t *testing.T) {
 	if got := f.files[Pending].data; !bytes.Equal(got, pendingOf(StrongSwan)) {
 		t.Errorf("Pending is\n%s", got)
 	}
-	checkLines(t, "the output", outputLines(t, out.String()), []string{
-		"Left 12 of the 12 files as they were",
-		"Would run systemctl daemon-reload",
-		"Would run networkctl reload",
-		"Would run systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
-		"Would run systemctl restart ikeward-routing.service",
-		"Would run systemctl restart strongswan.service, as " + owedWhy,
-		"Would run swanctl --load-all --noprompt",
-		"Would run systemctl start ikeward-watchdog.timer",
-	})
+	wantOut := []string{"Left 12 of the 12 files as they were"}
+	for _, line := range []string{
+		"systemctl daemon-reload",
+		"networkctl reload",
+		"systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
+		"systemctl restart ikeward-routing.service",
+		"systemctl restart strongswan.service",
+		"swanctl --load-all --noprompt",
+		"systemctl start ikeward-watchdog.timer",
+	} {
+		wantOut = append(wantOut, "Would run "+line+", as "+owedWhy)
+	}
+	checkLines(t, "the output", outputLines(t, out.String()), wantOut)
 }
 
 // A dry run shows no content of a file that only root may read on the system, though install

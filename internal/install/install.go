@@ -33,8 +33,11 @@ const (
 	// LastRestart holds when ikeward watchdog last restarted strongSwan, which uninstall removes
 	// too: install does not write it.
 	LastRestart = "/var/lib/ikeward/last-restart"
-	// Pending lists the daemons whose settings install changes, from before they change until
-	// install ends, for a rerun where it stopped half way. Uninstall removes it too.
+	// Journal lists the commands of the steps install owes, from before it changes a file until it
+	// ends, for a rerun where it stopped half way. Uninstall removes it too.
+	Journal = "/var/lib/ikeward/pending-steps"
+	// Pending is Journal's forerunner, which v0.2.0 wrote: the daemons to restart. Install reads it
+	// as owing every step, and removes it as it ends, as uninstall does.
 	Pending = "/var/lib/ikeward/pending-restarts"
 	// StrongSwan is strongSwan's unit, which charon-systemd ships.
 	StrongSwan = files.StrongSwan
@@ -155,7 +158,9 @@ func (s System) Install(p *profile.Profile, settings files.Settings) error {
 		return err
 	}
 	plan := s.plan(u.changed(), owed)
-	if err := s.pend(owed, plan); err != nil {
+	// Journal lists the steps before any file changes, so that a rerun takes them where this run
+	// stops half way.
+	if err := s.writeJournal(owed, plan); err != nil {
 		return err
 	}
 	if err := s.write(out, u); err != nil {

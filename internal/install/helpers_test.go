@@ -75,6 +75,12 @@ func recordOf(paths ...string) []byte {
 		strings.Join(paths, "\n") + "\n")
 }
 
+// journalOf is Journal as listing commands.
+func journalOf(commands ...string) []byte {
+	return []byte("# The steps ikeward install owes, which a rerun takes where it stops half way.\n" +
+		strings.Join(commands, "\n") + "\n")
+}
+
 // pendingOf is Pending as listing units.
 func pendingOf(units ...string) []byte {
 	return []byte("# The daemons whose settings ikeward install changes, which a rerun " +

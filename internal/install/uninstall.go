@@ -10,10 +10,13 @@ import (
 	"github.com/zadykian/ikeward/internal/routing"
 )
 
+// records are ikeward's records that Record does not list, which uninstall removes too.
+var records = []string{LastRestart, Journal, Pending, routing.Learned}
+
 // Uninstall stops and disables strongSwan and the watchdog's timer, and stops a run of the
 // watchdog, where systemd has them, then the routing's service. It removes routing.NATTable, the
-// rules, files.Table's routes, the files Record lists, LastRestart, Pending and routing.Learned.
-// It then has systemd and networkd drop them, and removes files.Link. The packages stay.
+// rules, files.Table's routes, the files Record lists, and records. Then it has systemd and
+// networkd drop them, and removes files.Link. The packages stay.
 func (s System) Uninstall() error {
 	out := &printer{w: s.Out}
 	paths, err := s.record()
@@ -24,7 +27,7 @@ func (s System) Uninstall() error {
 	if err != nil {
 		return err
 	}
-	for _, p := range []string{LastRestart, Pending, routing.Learned} {
+	for _, p := range records {
 		if _, _, err := s.Files.Read(p); !errors.Is(err, fs.ErrNotExist) {
 			paths = append(paths, p)
 		}

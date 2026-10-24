@@ -30,8 +30,9 @@ values, as root:
     strongSwan starts, as routing --help says. Then load the connection.
     networkd or strongSwan restarts where its own settings changed, as it
     reads them only as it starts. Where install stops half way, a rerun
-    restarts the daemon all the same: ` + install.Pending + `
-    names it from before its settings change until install ends.
+    takes the steps that were due all the same, a daemon's restart among
+    them: ` + install.Journal + ` names them from before the
+    files change until install ends.
 
 The profile's files are those ikev2setup.sh writes, named alike, each given
 by its path:

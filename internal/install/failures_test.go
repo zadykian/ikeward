@@ -68,23 +68,36 @@ func TestInstallErrors(t *testing.T) {
 	}
 }
 
-// install fails where it cannot read, write or remove Pending, or where Pending names a unit but
-// networkd's and strongSwan's.
-func TestInstallPendingErrors(t *testing.T) {
+// install fails where it cannot read Journal or Pending, or write or remove Journal. Or where
+// Journal lists other than a step's command, or Pending a unit but networkd's and strongSwan's.
+func TestInstallJournalErrors(t *testing.T) {
 	for _, test := range []struct {
 		name  string
 		setUp func(*fakeFiles)
 		want  string
 	}{
-		{"unread", func(f *fakeFiles) { f.failRead[Pending] = fs.ErrPermission },
-			"cannot read " + Pending + ": permission denied"},
+		{"unread", func(f *fakeFiles) { f.failRead[Journal] = fs.ErrPermission },
+			"cannot read " + Journal + ": permission denied"},
 		{"wrong", func(f *fakeFiles) {
+			f.files[Journal] = file{[]byte("# comment\n\nnetworkctl reload\nreboot\n"), 0o644}
+		}, Journal + `: line 4: "reboot" is not a command of install's steps`},
+		{"unwritten", func(f *fakeFiles) { f.failWrite[Journal] = errors.New("failed") },
+			"cannot write " + Journal + ": failed"},
+		{"unremoved", func(f *fakeFiles) { f.failRemove[Journal] = fs.ErrPermission },
+			"cannot remove " + Journal + ": permission denied"},
+		{"empty, unremoved", func(f *fakeFiles) {
+			f.files[Journal] = file{[]byte("# comment\n"), 0o644}
+			f.failRemove[Journal] = fs.ErrPermission
+		}, "cannot remove " + Journal + ": permission denied"},
+		{"Pending unread", func(f *fakeFiles) { f.failRead[Pending] = fs.ErrPermission },
+			"cannot read " + Pending + ": permission denied"},
+		{"Pending wrong", func(f *fakeFiles) {
 			f.files[Pending] = file{[]byte("# comment\n\nstrongswan.service\nssh.service\n"), 0o644}
 		}, Pending + `: line 4: "ssh.service" is not a daemon install restarts`},
-		{"unwritten", func(f *fakeFiles) { f.failWrite[Pending] = errors.New("failed") },
-			"cannot write " + Pending + ": failed"},
-		{"unremoved", func(f *fakeFiles) { f.failRemove[Pending] = fs.ErrPermission },
-			"cannot remove " + Pending + ": permission denied"},
+		{"Pending unremoved", func(f *fakeFiles) {
+			f.files[Pending] = file{pendingOf(StrongSwan), 0o644}
+			f.failRemove[Pending] = fs.ErrPermission
+		}, "cannot remove " + Pending + ": permission denied"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			f := newFakeFiles()
