@@ -89,8 +89,8 @@ func TestInstallPendingErrors(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			f := newFakeFiles()
 			test.setUp(f)
-			err := System{Files: f, Runner: newFakeRunner(Packages...), Out: &bytes.Buffer{},
-				Network: home(), Tables: withNAT()}.Install(newProfile(t, "client"), settings)
+			err := onHome(f, newFakeRunner(Packages...), &bytes.Buffer{}).Install(
+				newProfile(t, "client"), settings)
 			if err == nil || err.Error() != test.want {
 				t.Errorf("Install: %v, want %s", err, test.want)
 			}

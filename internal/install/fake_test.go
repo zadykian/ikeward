@@ -8,9 +8,7 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
-	"testing"
 
-	"github.com/zadykian/ikeward/internal/files"
 	"github.com/zadykian/ikeward/internal/routing"
 	"github.com/zadykian/ikeward/internal/status"
 )
@@ -155,23 +153,6 @@ func (f *fakeTables) RemoveTable(name string) error {
 	return nil
 }
 
-// withNAT are tables with ikeward's NAT table, as ikeward routing makes it.
-func withNAT() *fakeTables { return &fakeTables{tables: map[string]bool{"ikeward": true}} }
-
-// failingWriter fails every write.
-type failingWriter struct{}
-
-func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("the pipe is closed") }
-
-// checkLines fails t where got's lines are not want.
-func checkLines(t *testing.T, what string, got, want []string) {
-	t.Helper()
-	if !slices.Equal(got, want) {
-		t.Errorf("%s:\n  %s\nwant:\n  %s", what, strings.Join(got, "\n  "),
-			strings.Join(want, "\n  "))
-	}
-}
-
 // fakeNetwork is a kernel with rules, and routes by table, which records the rules removed, and
 // removes the routes of a table. It has the links that links names, and records those removed.
 // The errors fail HasLink, RemoveLink, Rules, RemoveRule and RemoveRoutes, in turn.
@@ -220,18 +201,4 @@ func (f *fakeNetwork) RemoveRoutes(table int) (int, error) {
 	n := len(f.routes[table])
 	delete(f.routes, table)
 	return n, nil
-}
-
-// home is a kernel as ikeward leaves it: the kernel's rules with ikeward's, and table 220's route
-// and floor. It has the tunnel's link too, as networkd makes it once install has run.
-func home() *fakeNetwork {
-	subnet := settings.Floors[0]
-	return &fakeNetwork{
-		rules: []routing.Rule{{Priority: 0, Table: 255, SuppressPrefixlen: -1}, routing.Rules[0],
-			routing.Rules[1], {Priority: 32766, Table: routing.Main, SuppressPrefixlen: -1}},
-		routes: map[int][]status.Route{files.Table: {
-			{Dst: subnet, Link: files.Link, Type: status.Unicast},
-			{Dst: subnet, Type: status.Unreachable, Metric: routing.FloorMetric}}},
-		links: map[string]bool{files.Link: true},
-	}
 }

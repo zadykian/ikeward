@@ -12,8 +12,7 @@ func TestInstallDryRun(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages[1:]...)
 	var out bytes.Buffer
-	if err := (System{Files: f, Runner: r, Out: &out, DryRun: true,
-		Network: home(), Tables: withNAT()}).Install(p, settings); err != nil {
+	if err := dryRunOn(f, r, &out).Install(p, settings); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.writes) > 0 || len(r.ran()) > 0 {
@@ -45,11 +44,10 @@ func TestInstallDryRun(t *testing.T) {
 func TestInstallDryRunChanges(t *testing.T) {
 	p := newProfile(t, "client")
 	f := newFakeFiles()
-	if err := (System{Files: f, Runner: newFakeRunner(Packages...), Out: &bytes.Buffer{},
-		Network: home(), Tables: withNAT()}).Install(p, settings); err != nil {
+	if err := onHome(f, newFakeRunner(Packages...), &bytes.Buffer{}).Install(p,
+		settings); err != nil {
 		t.Fatal(err)
 	}
-	connection := "/etc/swanctl/conf.d/ikeward.conf"
 	key := "/etc/swanctl/private/client-key.pem"
 	old := f.files[connection].data
 	f.files[connection] = file{bytes.Replace(old, []byte("dpd_delay    = 30s"),
@@ -58,8 +56,7 @@ func TestInstallDryRunChanges(t *testing.T) {
 	f.writes = nil
 	var out bytes.Buffer
 	r := newFakeRunner(Packages...)
-	if err := (System{Files: f, Runner: r, Out: &out, DryRun: true,
-		Network: home(), Tables: withNAT()}).Install(p, settings); err != nil {
+	if err := dryRunOn(f, r, &out).Install(p, settings); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.writes) > 0 || len(r.ran()) > 0 {
@@ -97,11 +94,9 @@ func TestInstallDryRunStale(t *testing.T) {
 	installOn(t, f, r, p)
 	f.files[Record] = file{append(f.files[Record].data, "/etc/swanctl/x509/old-cert.pem\n"...),
 		0o644}
-	timer := "/etc/systemd/system/ikeward-watchdog.timer"
 	f.files[timer] = file{f.files[timer].data, 0o600}
 	var out bytes.Buffer
-	if err := (System{Files: f, Runner: r, Out: &out, DryRun: true,
-		Network: home(), Tables: withNAT()}).Install(p, settings); err != nil {
+	if err := dryRunOn(f, r, &out).Install(p, settings); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.writes) > 0 || len(f.removes) > 0 || len(r.ran()) > 0 {
@@ -129,8 +124,7 @@ func TestInstallDryRunPending(t *testing.T) {
 	installOn(t, f, r, p)
 	f.files[Pending] = file{pendingOf(StrongSwan), 0o644}
 	var out bytes.Buffer
-	if err := (System{Files: f, Runner: r, Out: &out, DryRun: true,
-		Network: home(), Tables: withNAT()}).Install(p, settings); err != nil {
+	if err := dryRunOn(f, r, &out).Install(p, settings); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.writes) > 0 || len(f.removes) > 0 || len(r.ran()) > 0 {
@@ -158,11 +152,9 @@ func TestInstallDryRunPending(t *testing.T) {
 func TestInstallDryRunWasSecret(t *testing.T) {
 	p := newProfile(t, "client")
 	f := newFakeFiles()
-	connection := "/etc/swanctl/conf.d/ikeward.conf"
 	f.files[connection] = file{[]byte("secrets { ike { secret = by-hand } }\n"), 0o600}
 	var out bytes.Buffer
-	err := System{Files: f, Runner: newFakeRunner(Packages...), Out: &out, DryRun: true,
-		Network: home(), Tables: withNAT()}.Install(p, settings)
+	err := dryRunOn(f, newFakeRunner(Packages...), &out).Install(p, settings)
 	if err != nil {
 		t.Fatal(err)
 	}

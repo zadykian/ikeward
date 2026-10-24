@@ -7,6 +7,12 @@ import (
 	"testing"
 )
 
+// The connection's file and the watchdog's timer, which the tests change.
+const (
+	connection = "/etc/swanctl/conf.d/ikeward.conf"
+	timer      = "/etc/systemd/system/ikeward-watchdog.timer"
+)
+
 // On a system without the VPN, install installs the missing packages, writes every file and
 // the record, then restarts networkd and strongSwan, whose settings are new. Pending lists them
 // from before their settings are written until install ends.
@@ -106,9 +112,7 @@ func TestInstallChanges(t *testing.T) {
 	if err := onHome(f, r, &bytes.Buffer{}).Install(p, settings); err != nil {
 		t.Fatal(err)
 	}
-	connection := "/etc/swanctl/conf.d/ikeward.conf"
 	key := "/etc/swanctl/private/client-key.pem"
-	timer := "/etc/systemd/system/ikeward-watchdog.timer"
 	f.files[connection] = file{[]byte("connections {}\n"), 0o644}
 	f.files[key] = file{f.files[key].data, 0o644}
 	delete(f.files, timer)
@@ -182,7 +186,6 @@ func TestInstallStale(t *testing.T) {
 	checkLines(t, "the files removed", f.removes, stale)
 	paths := pathsOf(want(t, p))
 	// The connection names the certificate.
-	connection := "/etc/swanctl/conf.d/ikeward.conf"
 	checkLines(t, "the files written", f.writes, []string{Record, connection,
 		"/etc/swanctl/x509/after-cert.pem", "/etc/swanctl/x509ca/ikeward-ca.pem",
 		"/etc/swanctl/private/after-key.pem", Record})
