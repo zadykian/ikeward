@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"slices"
 	"strings"
 
 	"github.com/zadykian/ikeward/internal/files"
@@ -165,10 +164,8 @@ func (s System) Install(p *profile.Profile, settings files.Settings) error {
 	if err := s.write(out, u); err != nil {
 		return err
 	}
-	for _, command := range takeUp(restart.units) {
-		if err := s.run(out, command[0], command[1:]...); err != nil {
-			return err
-		}
+	if err := s.take(out, restart.units); err != nil {
+		return err
 	}
 	if err := s.restarted(restart); err != nil {
 		return err
@@ -205,51 +202,6 @@ func (s System) installPackages(out *printer, missing []string) error {
 		return err
 	}
 	return s.run(out, "apt-get", args...)
-}
-
-// networkd is systemd-networkd's unit.
-const networkd = "systemd-networkd.service"
-
-// daemon is a unit, and the directory of its own settings.
-type daemon struct{ unit, dir string }
-
-// daemons are the units that read their own settings only as they start: install restarts one
-// where it changes a file in its directory.
-var daemons = []daemon{
-	{networkd, "/etc/systemd/networkd.conf.d/"},
-	{StrongSwan, "/etc/strongswan.d/"},
-}
-
-// takeUp is the commands that have the system take up install's files. Each runs on every install,
-// and so mends an install that stopped half way. But a daemon that restart names, whose settings
-// changed in this run or one that stopped, restarts instead. The routing's service restarts each
-// time, before strongSwan starts.
-func takeUp(restart []string) [][]string {
-	orRestart := func(unit string, command ...string) []string {
-		if slices.Contains(restart, unit) {
-			return []string{"systemctl", "restart", unit}
-		}
-		return command
-	}
-	return [][]string{
-		{"systemctl", "daemon-reload"},
-		orRestart(networkd, "networkctl", "reload"),
-		{"systemctl", "enable", routing.Unit, StrongSwan, Timer},
-		// The service adds what is missing of the rules and the floors, and makes the NAT table
-		// anew. No traffic to the remote network then takes the default route as the tunnel comes up.
-		{"systemctl", "restart", routing.Unit},
-		orRestart(StrongSwan, "systemctl", "start", StrongSwan),
-		// strongSwan loads the files under /etc/swanctl as it starts, but not as it runs. A change
-		// of the networks replaces the CHILD SA in the same IKE SA: the tunnel pauses for a moment.
-		{"swanctl", "--load-all", "--noprompt"},
-		// Last, once the connection is loaded, which the watchdog checks.
-		{"systemctl", "start", Timer},
-	}
-}
-
-// changedIn is whether changed holds a file in dir.
-func changedIn(changed []string, dir string) bool {
-	return slices.ContainsFunc(changed, func(p string) bool { return strings.HasPrefix(p, dir) })
 }
 
 // run runs the command name with args, or in a dry run says it would.

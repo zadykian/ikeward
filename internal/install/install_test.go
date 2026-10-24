@@ -158,8 +158,8 @@ func TestTakeUp(t *testing.T) {
 			t.Fatal(err)
 		}
 		var got []string
-		for _, command := range takeUp(restart.units) {
-			got = append(got, strings.Join(command, " "))
+		for _, st := range steps {
+			got = append(got, strings.Join(st.commandFor(restart.units), " "))
 		}
 		checkLines(t, strings.Join(test.changed, ", "), got, []string{
 			"systemctl daemon-reload",

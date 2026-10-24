@@ -45,7 +45,7 @@ func (s System) writeRecord(old, paths []string) error {
 	return nil
 }
 
-// restarts are the daemons install restarts, in daemons' order: those Pending lists, which an
+// restarts are the daemons install restarts, in steps' order: those Pending lists, which an
 // earlier install left, and those whose settings this one changes. recorded is whether Pending
 // exists.
 type restarts struct {
@@ -53,7 +53,7 @@ type restarts struct {
 	recorded bool
 }
 
-// pending reads Pending, a unit of daemons on each line; where there is none, it lists none.
+// pending reads Pending, a daemon's unit on each line; where there is none, it lists none.
 func (s System) pending() (*restarts, error) {
 	data, _, err := s.Files.Read(Pending)
 	switch {
@@ -67,16 +67,16 @@ func (s System) pending() (*restarts, error) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		if !slices.ContainsFunc(daemons, func(d daemon) bool { return d.unit == line }) {
+		if line != networkd && line != StrongSwan {
 			return nil, fmt.Errorf("%s: line %d: %q is not a daemon install restarts", Pending,
 				i+1, line)
 		}
 		listed = append(listed, line)
 	}
 	r := &restarts{recorded: true}
-	for _, d := range daemons {
-		if slices.Contains(listed, d.unit) {
-			r.units = append(r.units, d.unit)
+	for _, st := range steps {
+		if unit := st.restart; unit != nil && slices.Contains(listed, unit[len(unit)-1]) {
+			r.units = append(r.units, unit[len(unit)-1])
 		}
 	}
 	return r, nil
@@ -86,10 +86,14 @@ func (s System) pending() (*restarts, error) {
 // install changes those settings. A stop between the two then costs a restart more at worst. A dry
 // run writes nothing.
 func (s System) pend(r *restarts, changed []string) error {
-	units := make([]string, 0, len(daemons))
-	for _, d := range daemons {
-		if slices.Contains(r.units, d.unit) || changedIn(changed, d.dir) {
-			units = append(units, d.unit)
+	var units []string
+	for _, st := range steps {
+		if st.restart == nil {
+			continue
+		}
+		unit := st.restart[len(st.restart)-1]
+		if _, ok := changedIn(changed, st.own); ok || slices.Contains(r.units, unit) {
+			units = append(units, unit)
 		}
 	}
 	if len(units) == len(r.units) {
@@ -113,7 +117,7 @@ func (s System) pend(r *restarts, changed []string) error {
 }
 
 // restarted removes Pending, where it exists, once the daemons it lists have restarted and the
-// rest of takeUp has run.
+// rest of the steps have run.
 func (s System) restarted(r *restarts) error {
 	if !r.recorded || s.DryRun {
 		return nil
