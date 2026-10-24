@@ -65,6 +65,7 @@ func TestInstall(t *testing.T) {
 	for _, path := range paths {
 		wantOut = append(wantOut, "Created "+path)
 	}
+	wantOut = append(wantOut, "Created "+Record)
 	for _, line := range r.ran()[1:] {
 		wantOut = append(wantOut, "Running "+line)
 	}
@@ -194,7 +195,7 @@ func TestInstallStale(t *testing.T) {
 		t.Errorf("the record is\n%s\nwant\n%s", got, want)
 	}
 	got := outputLines(t, out.String())
-	checkLines(t, "the output", got[:7], []string{
+	checkLines(t, "the output", got[:8], []string{
 		"Updated " + connection,
 		"Created /etc/swanctl/x509/after-cert.pem",
 		"Updated /etc/swanctl/x509ca/ikeward-ca.pem",
@@ -202,5 +203,6 @@ func TestInstallStale(t *testing.T) {
 		"Left 8 of the 12 files as they were",
 		"Removed " + stale[0],
 		"Removed " + stale[1],
+		"Updated " + Record,
 	})
 }

@@ -27,13 +27,14 @@ func (c change) secret() bool {
 
 // update is what install changes of its files: those of want that the system lacks or has
 // otherwise, and how many it has as they are. Then those Record lists but install no longer
-// writes. Where Record exists, record holds what it lists.
+// writes. Where Record exists, recorded is set, and record holds what it lists.
 type update struct {
-	want    []files.File
-	changes []change
-	same    int
-	stale   []string
-	record  []string
+	want     []files.File
+	changes  []change
+	same     int
+	stale    []string
+	record   []string
+	recorded bool
 }
 
 // update reads what install changes to write want.
@@ -44,6 +45,7 @@ func (s System) update(want []files.File) (update, error) {
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return update{}, err
 	}
+	u.recorded = err == nil
 	if u.changes, u.same, err = s.changes(want); err != nil {
 		return update{}, err
 	}
@@ -75,8 +77,8 @@ func (u update) changed() []string {
 }
 
 // write writes the files of u that differ on the system and removes the stale ones, naming each.
-// It keeps Record listing the files install wrote. A dry run prints the changes as diffs, but for
-// a file only root may read, and writes nothing.
+// It keeps Record listing the files install wrote, and names it where it changes. A dry run prints
+// the changes as diffs, but for a file only root may read, and writes nothing.
 func (s System) write(out *printer, u update) error {
 	paths := u.paths()
 	// Record gains the new files before they are written, so that uninstall finds them even where
@@ -100,10 +102,30 @@ func (s System) write(out *printer, u update) error {
 			return err
 		}
 	}
-	if s.DryRun {
+	if slices.Equal(u.record, paths) {
 		return nil
 	}
-	return s.writeRecord(both, paths)
+	if !s.DryRun {
+		if err := s.writeRecord(both, paths); err != nil {
+			return err
+		}
+	}
+	out.printf("%s %s\n", s.verb(u.recorded), Record)
+	return nil
+}
+
+// verb says that install created a file, or updated it where it existed, or in a dry run that it
+// would.
+func (s System) verb(existed bool) string {
+	switch {
+	case s.DryRun && existed:
+		return "Would update"
+	case s.DryRun:
+		return "Would create"
+	case existed:
+		return "Updated"
+	}
+	return "Created"
 }
 
 // writeChange writes c, or in a dry run prints it.
@@ -115,11 +137,7 @@ func (s System) writeChange(out *printer, c change) error {
 	if err := s.Files.Write(c.Path, c.Data, c.Mode); err != nil {
 		return fmt.Errorf("cannot write %s: %w", c.Path, err)
 	}
-	verb := "Created"
-	if c.exists {
-		verb = "Updated"
-	}
-	out.printf("%s %s\n", verb, c.Path)
+	out.printf("%s %s\n", s.verb(c.exists), c.Path)
 	return nil
 }
 
