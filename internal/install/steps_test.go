@@ -10,6 +10,11 @@ import (
 // enable is the step that enables ikeward's units and strongSwan.
 const enable = "systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer"
 
+// everyStep are the commands of the steps, where no daemon restarts.
+var everyStep = []string{"systemctl daemon-reload", "networkctl reload", enable,
+	"systemctl restart ikeward-routing.service", "systemctl start strongswan.service",
+	"swanctl --load-all --noprompt", "systemctl start ikeward-watchdog.timer"}
+
 // A file that install changes makes the steps that read it due, and a change to networkd's or
 // strongSwan's own settings restarts that daemon. On a system as install left it, nothing else is.
 func TestStepsReadFiles(t *testing.T) {
@@ -41,4 +46,31 @@ func TestStepsReadFiles(t *testing.T) {
 		got := s.plan(newProbes(t.Context(), s, p, settings), changed, owed{}).lines()
 		checkLines(t, "the steps due as "+test.changed+" changes", got, test.want)
 	}
+}
+
+// With AllSteps, install takes every step, as v0.2.0 did, and says it changes the system. A step
+// due for a reason of its own says that reason.
+func TestAllSteps(t *testing.T) {
+	p := newProfile(t, "client")
+	f, r := newFakeFiles(), newFakeRunner(Packages...)
+	installOn(t, f, r, p)
+	r.states[Timer+" UnitFileState"] = "disabled"
+	var out bytes.Buffer
+	s := onHome(f, r, &out)
+	s.AllSteps = true
+	changed, err := s.Install(t.Context(), p, settings)
+	if err != nil || !changed {
+		t.Fatalf("Install: %v, %v", changed, err)
+	}
+	wantOut := []string{"Left 12 of the 12 files as they were"}
+	for _, line := range everyStep {
+		why := "--all-steps asks"
+		if line == enable {
+			why = "ikeward-watchdog.timer is disabled"
+		}
+		wantOut = append(wantOut, "Running "+line+", as "+why)
+	}
+	checkLines(t, "the output", outputLines(t, out.String()), wantOut)
+	checkLines(t, "the files written", f.writes, []string{Journal})
+	checkLines(t, "the files removed", f.removes, []string{Journal})
 }
