@@ -2,20 +2,25 @@ package install
 
 import (
 	"fmt"
+	"net/netip"
+	"slices"
 	"strings"
 
+	"github.com/zadykian/ikeward/internal/files"
 	"github.com/zadykian/ikeward/internal/routing"
+	"github.com/zadykian/ikeward/internal/status"
 )
 
 // probes look at the system for the steps, and change nothing. A probe that fails to look says
 // why, which makes its step due. units keeps what systemctl show said of each unit asked.
 type probes struct {
-	s     System
-	units map[string]unitState
+	s        System
+	settings files.Settings
+	units    map[string]unitState
 }
 
-func newProbes(s System) *probes {
-	return &probes{s: s, units: map[string]unitState{}}
+func newProbes(s System, settings files.Settings) *probes {
+	return &probes{s: s, settings: settings, units: map[string]unitState{}}
 }
 
 // unitState is what systemctl show says of a unit: its load, active and unit file states, and
@@ -94,3 +99,32 @@ func (p *probes) active(name string) string {
 func (p *probes) strongSwan() string { return p.active(StrongSwan) }
 
 func (p *probes) timer() string { return p.active(Timer) }
+
+// checks is status's view of the system, whose checks read what the steps make.
+func (p *probes) checks() status.System {
+	return status.System{Network: p.s.Network, Runner: p.s.Runner, Files: p.s.Files}
+}
+
+// network says why networkd must read its files again: files.Link is missing, or lacks its own
+// address. Or the DNS check fails, of the settings networkd gives resolved.
+func (p *probes) network() string {
+	has, err := p.s.Network.HasLink(files.Link)
+	switch {
+	case err != nil:
+		return fmt.Sprintf("the kernel cannot say whether there is a link %s: %v", files.Link, err)
+	case !has:
+		return "there is no link " + files.Link
+	}
+	addrs, err := p.s.Network.Addrs(files.Link)
+	if err != nil {
+		return fmt.Sprintf("the addresses of %s cannot be read: %v", files.Link, err)
+	}
+	own := netip.MustParsePrefix(files.LinkULA).Addr()
+	if !slices.ContainsFunc(addrs, func(a netip.Prefix) bool { return a.Addr() == own }) {
+		return files.Link + " lacks its own address, " + files.LinkULA
+	}
+	if r := p.checks().CheckDNS(p.settings); !r.OK {
+		return "the DNS check fails: " + r.Detail
+	}
+	return ""
+}

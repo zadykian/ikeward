@@ -25,11 +25,6 @@ type answering struct{}
 
 func (answering) Lookup(context.Context, string, string) error { return nil }
 
-// resolved is what resolvectl prints of ikeward0 with the VPN up.
-const resolved = `[{"ifname":"ikeward0","defaultRoute":false,` +
-	`"servers":[{"addressString":"192.0.2.10"}],"searchDomains":[` +
-	`{"name":"example.test","routeOnly":true}],"scopes":[{"protocol":"dns"}]}]`
-
 // statusRunner prints resolved for resolvectl.
 type statusRunner struct{ commands []string }
 

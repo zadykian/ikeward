@@ -109,6 +109,13 @@ func dryRunOn(f *fakeFiles, r *fakeRunner, out io.Writer) System {
 	return s
 }
 
+// resolved is what resolvectl --json=short status ikeward0 prints once networkd has set up the
+// link from settings.
+const resolved = `[{"ifname":"ikeward0","defaultRoute":false,` +
+	`"servers":[{"addressString":"192.0.2.10"}],` +
+	`"searchDomains":[{"name":"example.test","routeOnly":true}],` +
+	`"scopes":[{"protocol":"dns"}]}]` + "\n"
+
 // withNAT are tables with ikeward's NAT table, as ikeward routing makes it.
 func withNAT() *fakeTables { return &fakeTables{tables: map[string]bool{"ikeward": true}} }
 
@@ -127,7 +134,8 @@ func checkLines(t *testing.T, what string, got, want []string) {
 }
 
 // home is a kernel as ikeward leaves it: the kernel's rules with ikeward's, and table 220's route
-// and floor. It has the tunnel's link too, as networkd makes it once install has run.
+// and floor. It has the tunnel's link too, with its own address, as networkd makes it once install
+// has run.
 func home() *fakeNetwork {
 	subnet := settings.Floors[0]
 	return &fakeNetwork{
@@ -137,5 +145,6 @@ func home() *fakeNetwork {
 			{Dst: subnet, Link: files.Link, Type: status.Unicast},
 			{Dst: subnet, Type: status.Unreachable, Metric: routing.FloorMetric}}},
 		links: map[string]bool{files.Link: true},
+		addrs: map[string][]netip.Prefix{files.Link: {netip.MustParsePrefix(files.LinkULA)}},
 	}
 }

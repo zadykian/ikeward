@@ -72,7 +72,7 @@ func (f *fakeFiles) paths() []string {
 
 // fakeRunner runs no command: it records each, answers dpkg-query from installed and systemctl
 // list-unit-files from noUnit, and fails those that fail names. systemctl show says each unit is
-// as install leaves it, but where states names a property.
+// as install leaves it, but where states names a property, and resolvectl prints resolved.
 type fakeRunner struct {
 	commands []string
 	// installed are the packages dpkg-query reports installed.
@@ -80,14 +80,16 @@ type fakeRunner struct {
 	// noUnit are the units systemd lacks.
 	noUnit map[string]bool
 	// states are properties of units, as "UNIT PROPERTY", and their values.
-	states map[string]string
+	states   map[string]string
+	resolved string
 	// fail fails the command whose line it names, and failOnce the first time it runs.
 	fail, failOnce map[string]error
 }
 
 func newFakeRunner(installed ...string) *fakeRunner {
 	r := &fakeRunner{installed: map[string]bool{}, noUnit: map[string]bool{},
-		fail: map[string]error{}, failOnce: map[string]error{}, states: map[string]string{}}
+		fail: map[string]error{}, failOnce: map[string]error{}, states: map[string]string{},
+		resolved: resolved}
 	for _, name := range installed {
 		r.installed[name] = true
 	}
@@ -113,6 +115,9 @@ func (r *fakeRunner) Run(name string, args ...string) (string, error) {
 	}
 	if name == "systemctl" && args[0] == "show" {
 		return r.show(args[len(args)-1]), nil
+	}
+	if name == "resolvectl" {
+		return r.resolved, nil
 	}
 	if name == "dpkg-query" {
 		pkg := args[len(args)-1]
@@ -147,13 +152,14 @@ func (r *fakeRunner) show(unit string) string {
 	return out.String()
 }
 
-// ran is r's commands but the queries: dpkg-query's, and systemctl list-unit-files' and show's.
+// ran is r's commands but the queries: dpkg-query's, systemctl list-unit-files' and show's, and
+// resolvectl's.
 func (r *fakeRunner) ran() []string {
 	var ran []string
 	for _, line := range r.commands {
 		if !strings.HasPrefix(line, "dpkg-query ") &&
 			!strings.HasPrefix(line, "systemctl list-unit-files ") &&
-			!strings.HasPrefix(line, "systemctl show ") {
+			!strings.HasPrefix(line, "systemctl show ") && !strings.HasPrefix(line, "resolvectl ") {
 			ran = append(ran, line)
 		}
 	}
@@ -180,12 +186,13 @@ func (f *fakeTables) RemoveTable(name string) error {
 }
 
 // fakeNetwork is a kernel with rules, and routes by table, which records the rules removed, and
-// removes the routes of a table. It has the links that links names, and records those removed.
-// The errors fail HasLink, RemoveLink, Rules, RemoveRule and RemoveRoutes, in turn.
+// removes the routes of a table. It has the links that links names, with addrs' addresses, and
+// records those removed. The errors fail HasLink, RemoveLink, Rules, RemoveRule and RemoveRoutes.
 type fakeNetwork struct {
 	rules              []routing.Rule
 	routes             map[int][]status.Route
 	links              map[string]bool
+	addrs              map[string][]netip.Prefix
 	removed, unruled   []string
 	linkErr, removeErr error
 	rulesErr, ruleErr  error
@@ -203,9 +210,7 @@ func (f *fakeNetwork) RemoveLink(name string) error {
 	return nil
 }
 
-func (f *fakeNetwork) Addrs(string) ([]netip.Prefix, error) {
-	return nil, errors.New("install reads no address")
-}
+func (f *fakeNetwork) Addrs(link string) ([]netip.Prefix, error) { return f.addrs[link], nil }
 
 func (f *fakeNetwork) Rules() ([]routing.Rule, error) { return slices.Clone(f.rules), f.rulesErr }
 

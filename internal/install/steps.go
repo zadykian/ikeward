@@ -34,7 +34,7 @@ var steps = []step{
 		probe: (*probes).reloaded},
 	{command: []string{"networkctl", "reload"}, reads: []string{"/etc/systemd/network/"},
 		restart: []string{"systemctl", "restart", networkd},
-		own:     []string{"/etc/systemd/networkd.conf.d/"}},
+		own:     []string{"/etc/systemd/networkd.conf.d/"}, probe: (*probes).network},
 	{command: []string{"systemctl", "enable", routing.Unit, StrongSwan, Timer},
 		reads: []string{unitDir + routing.Unit, unitDir + Timer}, probe: (*probes).enabled},
 	// The service adds what is missing of the rules and the floors, and makes the NAT table

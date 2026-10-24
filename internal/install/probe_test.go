@@ -7,12 +7,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zadykian/ikeward/internal/files"
 	"github.com/zadykian/ikeward/internal/routing"
 )
 
 // fakes are the fakes of a system that install set up, for a probe to find otherwise.
 type fakes struct {
-	runner *fakeRunner
+	runner  *fakeRunner
+	network *fakeNetwork
 }
 
 // probeCase is a probe that finds a system that install set up otherwise, as setUp leaves it.
@@ -34,7 +36,7 @@ func checkProbes(t *testing.T, cases []probeCase) {
 			installOn(t, f, r, p)
 			var out bytes.Buffer
 			s := dryRunOn(f, r, &out)
-			fs := fakes{r}
+			fs := fakes{r, s.Network.(*fakeNetwork)}
 			test.setUp(fs)
 			if err := s.Install(p, settings); err != nil {
 				t.Fatal(err)
@@ -84,5 +86,21 @@ func TestUnitProbes(t *testing.T) {
 			"systemctl start ikeward-watchdog.timer, as systemctl show ikeward-watchdog.timer " +
 				"fails: exit status 1",
 		}},
+	})
+}
+
+// files.Link missing, or its own address, or a failing DNS check make networkd reload.
+func TestNetworkProbes(t *testing.T) {
+	failed := errors.New("exit status 1")
+	checkProbes(t, []probeCase{
+		{"no link", func(f fakes) { f.network.links = nil },
+			[]string{"networkctl reload, as there is no link ikeward0"}},
+		{"links unread", func(f fakes) { f.network.linkErr = failed },
+			[]string{"networkctl reload, as the kernel cannot say whether there is a link " +
+				"ikeward0: exit status 1"}},
+		{"no own address", func(f fakes) { f.network.addrs = nil },
+			[]string{"networkctl reload, as ikeward0 lacks its own address, " + files.LinkULA}},
+		{"DNS", func(f fakes) { f.runner.resolved = "[]" }, []string{
+			"networkctl reload, as the DNS check fails: resolvectl says nothing of ikeward0"}},
 	})
 }

@@ -72,8 +72,8 @@ type Tables interface {
 	RemoveTable(name string) error
 }
 
-// Network is the kernel's rules and routes, of which uninstall removes ikeward's, and its links,
-// of which it removes files.Link.
+// Network is the kernel's addresses, rules and routes, of which uninstall removes ikeward's, and
+// its links, of which it removes files.Link.
 type Network interface {
 	status.Network
 	// HasLink is whether the kernel has a link named name.
@@ -157,7 +157,7 @@ func (s System) Install(p *profile.Profile, settings files.Settings) error {
 	if err != nil {
 		return err
 	}
-	plan := s.plan(newProbes(s), u.changed(), owed)
+	plan := s.plan(newProbes(s, settings), u.changed(), owed)
 	// Journal lists the steps before any file changes, so that a rerun takes them where this run
 	// stops half way.
 	if err := s.writeJournal(owed, plan); err != nil {

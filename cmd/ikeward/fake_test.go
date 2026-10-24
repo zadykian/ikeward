@@ -32,8 +32,9 @@ func (f *fakeTerminal) ReadPassword() ([]byte, error) {
 	return []byte(f.password), f.err
 }
 
-// fakeRunner runs no command: it records each, and dpkg-query reports every package installed.
-// systemctl show prints what units holds for a unit it names, and healthyUnit for any other.
+// fakeRunner runs no command: it records each. dpkg-query reports every package installed, and
+// resolvectl prints resolved. systemctl show prints what units holds for a unit it names, and
+// healthyUnit for any other.
 type fakeRunner struct {
 	commands []string
 	units    map[string]string
@@ -43,11 +44,18 @@ type fakeRunner struct {
 const healthyUnit = "LoadState=loaded\nActiveState=active\nUnitFileState=enabled\n" +
 	"NeedDaemonReload=no\n"
 
+// resolved is what resolvectl prints of ikeward0 with the VPN up.
+const resolved = `[{"ifname":"ikeward0","defaultRoute":false,` +
+	`"servers":[{"addressString":"192.0.2.10"}],"searchDomains":[` +
+	`{"name":"example.test","routeOnly":true}],"scopes":[{"protocol":"dns"}]}]`
+
 func (r *fakeRunner) Run(name string, args ...string) (string, error) {
 	r.commands = append(r.commands, strings.Join(append([]string{name}, args...), " "))
 	switch {
 	case name == "dpkg-query":
 		return "installed", nil
+	case name == "resolvectl":
+		return resolved, nil
 	case name == "systemctl" && args[0] == "show":
 		if out, ok := r.units[args[len(args)-1]]; ok {
 			return out, nil
