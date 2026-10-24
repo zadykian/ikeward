@@ -146,7 +146,7 @@ func (s System) Install(p *profile.Profile, settings files.Settings) error {
 			return err
 		}
 	}
-	restart, err := s.pending()
+	owed, err := s.owed()
 	if err != nil {
 		return err
 	}
@@ -154,8 +154,8 @@ func (s System) Install(p *profile.Profile, settings files.Settings) error {
 	if err != nil {
 		return err
 	}
-	plan := s.plan(u.changed(), restart.units)
-	if err := s.pend(restart, u.changed()); err != nil {
+	plan := s.plan(u.changed(), owed)
+	if err := s.pend(owed, plan); err != nil {
 		return err
 	}
 	if err := s.write(out, u); err != nil {
@@ -164,7 +164,7 @@ func (s System) Install(p *profile.Profile, settings files.Settings) error {
 	if err := s.take(out, plan); err != nil {
 		return err
 	}
-	if err := s.restarted(restart); err != nil {
+	if err := s.ended(owed, plan); err != nil {
 		return err
 	}
 	return out.err

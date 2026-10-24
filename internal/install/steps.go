@@ -60,20 +60,19 @@ type plan []*due
 // owedWhy is why a step is due that Pending owes.
 const owedWhy = "an earlier install stopped before it ended"
 
-// plan works out the steps due: the restarts of the daemons that pending names, and the steps
-// that read a file of changed.
-func (System) plan(changed, pending []string) plan {
+// plan works out the steps due: those owed names, and those that read a file of changed.
+func (System) plan(changed []string, owed owed) plan {
 	out := make(plan, len(steps))
 	for i, st := range steps {
-		out[i] = st.due(changed, pending)
+		out[i] = st.due(changed, owed)
 	}
 	return out
 }
 
 // due is why st is due, or nil for a step not due.
-func (st step) due(changed, pending []string) *due {
+func (st step) due(changed []string, owed owed) *due {
 	if st.restart != nil {
-		if slices.Contains(pending, st.restart[len(st.restart)-1]) {
+		if owed.has(st.restart) {
 			return &due{why: owedWhy, restart: true}
 		}
 		if path, ok := changedIn(changed, st.own); ok {
