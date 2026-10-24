@@ -38,7 +38,7 @@ func checkProbes(t *testing.T, cases []probeCase) {
 			s := dryRunOn(f, r, &out)
 			fs := fakes{r, s.Network.(*fakeNetwork)}
 			test.setUp(fs)
-			if err := s.Install(p, settings); err != nil {
+			if err := s.Install(t.Context(), p, settings); err != nil {
 				t.Fatal(err)
 			}
 			wantOut := []string{"Left 12 of the 12 files as they were"}

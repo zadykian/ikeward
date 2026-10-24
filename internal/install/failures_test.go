@@ -60,7 +60,7 @@ func TestInstallErrors(t *testing.T) {
 			if test.setUp != nil {
 				test.setUp(f, r)
 			}
-			err := onHome(f, r, &bytes.Buffer{}).Install(test.p, settings)
+			err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), test.p, settings)
 			if err == nil || err.Error() != test.want {
 				t.Errorf("Install: %v, want %s", err, test.want)
 			}
@@ -102,7 +102,7 @@ func TestInstallJournalErrors(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			f := newFakeFiles()
 			test.setUp(f)
-			err := onHome(f, newFakeRunner(Packages...), &bytes.Buffer{}).Install(
+			err := onHome(f, newFakeRunner(Packages...), &bytes.Buffer{}).Install(t.Context(),
 				newProfile(t, "client"), settings)
 			if err == nil || err.Error() != test.want {
 				t.Errorf("Install: %v, want %s", err, test.want)
@@ -114,7 +114,7 @@ func TestInstallJournalErrors(t *testing.T) {
 // A failed write of the output fails install, but only once install is done.
 func TestInstallOutputFails(t *testing.T) {
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
-	err := onHome(f, r, failingWriter{}).Install(newProfile(t, "client"), settings)
+	err := onHome(f, r, failingWriter{}).Install(t.Context(), newProfile(t, "client"), settings)
 	if err == nil || err.Error() != "the pipe is closed" {
 		t.Errorf("Install: %v, want the write's error", err)
 	}
@@ -128,7 +128,7 @@ func TestInstallWrongSettings(t *testing.T) {
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
 	wrong := settings
 	wrong.Domains = nil
-	err := onHome(f, r, &bytes.Buffer{}).Install(newProfile(t, "client"), wrong)
+	err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), newProfile(t, "client"), wrong)
 	if err == nil || err.Error() != "cannot generate the files: no domain" {
 		t.Errorf("Install: %v, want Check's error", err)
 	}
@@ -163,7 +163,7 @@ func TestInstallUpdatesLists(t *testing.T) {
 			r := newFakeRunner("strongswan", "strongswan-swanctl", "libcharon-extra-plugins")
 			test.setUp(r)
 			var out bytes.Buffer
-			err := onHome(f, r, &out).Install(newProfile(t, "client"), settings)
+			err := onHome(f, r, &out).Install(t.Context(), newProfile(t, "client"), settings)
 			if (err == nil) != (test.want == "") || (err != nil && err.Error() != test.want) {
 				t.Fatalf("Install: %v, want %q", err, test.want)
 			}

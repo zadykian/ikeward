@@ -12,7 +12,7 @@ func TestInstallDryRun(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages[1:]...)
 	var out bytes.Buffer
-	if err := dryRunOn(f, r, &out).Install(p, settings); err != nil {
+	if err := dryRunOn(f, r, &out).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.writes) > 0 || len(r.ran()) > 0 {
@@ -47,7 +47,7 @@ func TestInstallDryRun(t *testing.T) {
 func TestInstallDryRunChanges(t *testing.T) {
 	p := newProfile(t, "client")
 	f := newFakeFiles()
-	if err := onHome(f, newFakeRunner(Packages...), &bytes.Buffer{}).Install(p,
+	if err := onHome(f, newFakeRunner(Packages...), &bytes.Buffer{}).Install(t.Context(), p,
 		settings); err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestInstallDryRunChanges(t *testing.T) {
 	f.writes = nil
 	var out bytes.Buffer
 	r := newFakeRunner(Packages...)
-	if err := dryRunOn(f, r, &out).Install(p, settings); err != nil {
+	if err := dryRunOn(f, r, &out).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.writes) > 0 || len(r.ran()) > 0 {
@@ -95,7 +95,7 @@ func TestInstallDryRunStale(t *testing.T) {
 		0o644}
 	f.files[timer] = file{f.files[timer].data, 0o600}
 	var out bytes.Buffer
-	if err := dryRunOn(f, r, &out).Install(p, settings); err != nil {
+	if err := dryRunOn(f, r, &out).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.writes) > 0 || len(f.removes) > 0 || len(r.ran()) > 0 {
@@ -124,7 +124,7 @@ func TestInstallDryRunPending(t *testing.T) {
 	installOn(t, f, r, p)
 	f.files[Pending] = file{pendingOf(StrongSwan), 0o644}
 	var out bytes.Buffer
-	if err := dryRunOn(f, r, &out).Install(p, settings); err != nil {
+	if err := dryRunOn(f, r, &out).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.writes) > 0 || len(f.removes) > 0 || len(r.ran()) > 0 {
@@ -155,7 +155,7 @@ func TestInstallDryRunWasSecret(t *testing.T) {
 	f := newFakeFiles()
 	f.files[connection] = file{[]byte("secrets { ike { secret = by-hand } }\n"), 0o600}
 	var out bytes.Buffer
-	err := dryRunOn(f, newFakeRunner(Packages...), &out).Install(p, settings)
+	err := dryRunOn(f, newFakeRunner(Packages...), &out).Install(t.Context(), p, settings)
 	if err != nil {
 		t.Fatal(err)
 	}

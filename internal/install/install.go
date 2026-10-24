@@ -130,7 +130,7 @@ func (p *printer) printf(format string, args ...any) {
 // Install installs the VPN from p, with settings, the remote network's values. It installs
 // strongSwan's packages where missing, and writes the files that differ. It then runs the commands
 // that take them up.
-func (s System) Install(p *profile.Profile, settings files.Settings) error {
+func (s System) Install(ctx context.Context, p *profile.Profile, settings files.Settings) error {
 	generated, err := files.Generate(p, settings)
 	if err != nil {
 		return err

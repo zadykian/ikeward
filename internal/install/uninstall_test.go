@@ -16,7 +16,9 @@ func installed(t *testing.T) (*fakeFiles, []string) {
 	t.Helper()
 	p := newProfile(t, "client")
 	f := newFakeFiles()
-	if err := onHome(f, newFakeRunner(Packages...), &bytes.Buffer{}).Install(p, settings); err != nil {
+	err := onHome(f, newFakeRunner(Packages...), &bytes.Buffer{}).Install(t.Context(), p,
+		settings)
+	if err != nil {
 		t.Fatal(err)
 	}
 	f.writes, f.removes = nil, nil

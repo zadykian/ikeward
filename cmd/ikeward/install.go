@@ -131,7 +131,7 @@ func newInstall(sys system) *cobra.Command {
 			if err := sys.clearOfServer(command, p.Server, settings.Floors); err != nil {
 				return err
 			}
-			return sys.installer(command, dryRun).Install(p, settings)
+			return sys.installer(command, dryRun).Install(command.Context(), p, settings)
 		},
 	}
 	command.Flags().StringVar(&named.p12, "p12", "", "the client profile's .p12 `FILE`")
