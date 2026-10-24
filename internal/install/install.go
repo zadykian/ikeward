@@ -64,8 +64,10 @@ type Runner interface {
 	Run(name string, args ...string) (string, error)
 }
 
-// Tables are nftables' tables of the ip family, of which uninstall removes routing.NATTable.
+// Tables are nftables' tables of the ip family. Install checks routing.NATTable, and uninstall
+// removes it.
 type Tables interface {
+	status.NAT
 	// HasTable is whether nftables has the table named name.
 	HasTable(name string) (bool, error)
 	// RemoveTable removes the table named name, where it exists.

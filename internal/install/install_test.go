@@ -88,7 +88,6 @@ func TestInstallAgain(t *testing.T) {
 		t.Errorf("wrote %q and removed %q", f.writes, f.removes)
 	}
 	commands := []string{
-		"systemctl restart ikeward-routing.service",
 		"swanctl --load-all --noprompt",
 	}
 	checkLines(t, "the commands", r.ran(), commands)
@@ -127,7 +126,6 @@ func TestInstallChanges(t *testing.T) {
 		"Running systemctl daemon-reload, as " + timer + " changes",
 		"Running systemctl enable ikeward-routing.service strongswan.service " +
 			"ikeward-watchdog.timer, as " + timer + " changes",
-		"Running systemctl restart ikeward-routing.service",
 		"Running swanctl --load-all --noprompt, as " + connection + " changes",
 		"Running systemctl start ikeward-watchdog.timer, as " + timer + " changes",
 	})

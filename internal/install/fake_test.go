@@ -167,7 +167,7 @@ func (r *fakeRunner) ran() []string {
 }
 
 // fakeTables are nftables' tables, with those that tables names, which records those removed.
-// hasErr fails HasTable, and removeErr RemoveTable.
+// hasErr fails HasTable, and removeErr RemoveTable. The NAT table's rule has NATed no connection.
 type fakeTables struct {
 	tables            map[string]bool
 	removed           []string
@@ -175,6 +175,13 @@ type fakeTables struct {
 }
 
 func (f *fakeTables) HasTable(name string) (bool, error) { return f.tables[name], f.hasErr }
+
+func (f *fakeTables) Connections() (uint64, error) {
+	if !f.tables[routing.NATTable] {
+		return 0, routing.Missing{Err: errors.New("there is no table ip " + routing.NATTable)}
+	}
+	return 0, nil
+}
 
 func (f *fakeTables) RemoveTable(name string) error {
 	if f.removeErr != nil {

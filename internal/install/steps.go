@@ -40,7 +40,7 @@ var steps = []step{
 	// The service adds what is missing of the rules and the floors, and makes the NAT table
 	// anew. No traffic to the remote network then takes the default route as the tunnel comes up.
 	{command: []string{"systemctl", "restart", routing.Unit},
-		reads: []string{unitDir + routing.Unit, files.SettingsFile}},
+		reads: []string{unitDir + routing.Unit, files.SettingsFile}, probe: (*probes).routing},
 	{command: []string{"systemctl", "start", StrongSwan},
 		restart: []string{"systemctl", "restart", StrongSwan},
 		own:     []string{"/etc/strongswan.d/"}, probe: (*probes).strongSwan},

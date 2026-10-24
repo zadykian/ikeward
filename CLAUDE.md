@@ -47,7 +47,7 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
   steps, from `systemctl daemon-reload` to the watchdog's timer, where due. That's where it
   changes a file the step reads, the journal owes it, or the step's probe finds the system needs
   it. The probes read the units through `systemctl show`, and `ikeward0` and its address. Then
-  `status`'s DNS check. A step with no probe runs on every install: the routing's restart and the
+  `status`'s rule, floor, NAT and DNS checks. A step with no probe runs on every install: the
   connection's load.
   `/var/lib/ikeward/pending-steps`, the journal, names the steps due from before `install` changes
   a file until it ends, for a rerun where it stopped half way.

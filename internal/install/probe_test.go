@@ -15,6 +15,7 @@ import (
 type fakes struct {
 	runner  *fakeRunner
 	network *fakeNetwork
+	tables  *fakeTables
 }
 
 // probeCase is a probe that finds a system that install set up otherwise, as setUp leaves it.
@@ -36,7 +37,7 @@ func checkProbes(t *testing.T, cases []probeCase) {
 			installOn(t, f, r, p)
 			var out bytes.Buffer
 			s := dryRunOn(f, r, &out)
-			fs := fakes{r, s.Network.(*fakeNetwork)}
+			fs := fakes{r, s.Network.(*fakeNetwork), s.Tables.(*fakeTables)}
 			test.setUp(fs)
 			if err := s.Install(t.Context(), p, settings); err != nil {
 				t.Fatal(err)
@@ -62,6 +63,7 @@ func probed(lines []string) []string {
 // What systemctl show says of a unit makes its steps due: systemd reloads one changed on disk or
 // not loaded, enables one not enabled, and starts one not active. systemctl failing does too.
 func TestUnitProbes(t *testing.T) {
+	routingUnit := "systemctl restart " + routing.Unit
 	failed := errors.New("exit status 1")
 	checkProbes(t, []probeCase{
 		{"changed on disk", func(f fakes) { f.runner.states[Service+" NeedDaemonReload"] = "yes" },
@@ -72,6 +74,8 @@ func TestUnitProbes(t *testing.T) {
 			[]string{enable + ", as strongswan.service is disabled"}},
 		{"no unit file", func(f fakes) { f.runner.states[Timer+" UnitFileState"] = "" },
 			[]string{enable + ", as ikeward-watchdog.timer is not enabled"}},
+		{"routing failed", func(f fakes) { f.runner.states[routing.Unit+" ActiveState"] = "failed" },
+			[]string{routingUnit + ", as ikeward-routing.service is failed"}},
 		{"strongSwan stopped", func(f fakes) {
 			f.runner.states[StrongSwan+" ActiveState"] = "inactive"
 		}, []string{"systemctl start strongswan.service, as strongswan.service is inactive"}},
@@ -89,8 +93,10 @@ func TestUnitProbes(t *testing.T) {
 	})
 }
 
-// files.Link missing, or its own address, or a failing DNS check make networkd reload.
+// files.Link missing, or its own address, or a failing DNS check make networkd reload. A failing
+// rule, floor or NAT check restarts the routing's unit.
 func TestNetworkProbes(t *testing.T) {
+	routingUnit := "systemctl restart " + routing.Unit
 	failed := errors.New("exit status 1")
 	checkProbes(t, []probeCase{
 		{"no link", func(f fakes) { f.network.links = nil },
@@ -102,5 +108,15 @@ func TestNetworkProbes(t *testing.T) {
 			[]string{"networkctl reload, as ikeward0 lacks its own address, " + files.LinkULA}},
 		{"DNS", func(f fakes) { f.runner.resolved = "[]" }, []string{
 			"networkctl reload, as the DNS check fails: resolvectl says nothing of ikeward0"}},
+		{"rule", func(f fakes) { f.network.rules = f.network.rules[:2] }, []string{
+			routingUnit + ", as the rule check fails: no rule 32001: from all lookup 220 " +
+				"suppress_prefixlength 0"}},
+		{"floor", func(f fakes) { f.network.routes[files.Table] = f.network.routes[files.Table][:1] },
+			[]string{routingUnit + ", as the floor check fails: table 220 has no unreachable " +
+				"route to 10.88.0.0/16 at metric 4000: while the tunnel is down, traffic there " +
+				"takes the default route; learned: none yet"}},
+		{"NAT", func(f fakes) { f.tables.tables = nil }, []string{
+			routingUnit + ", as the NAT check fails: there is no table ip ikeward: a forwarded " +
+				"network's traffic leaves ikeward0 from its own address, which no SA takes"}},
 	})
 }

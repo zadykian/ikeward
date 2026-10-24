@@ -40,10 +40,10 @@ Install says why a step is due. It is due where:
     change until install ends;
   - or a probe finds that the system needs it: a unit disabled, stopped or
     changed on disk, the link ` + files.Link + ` or its own address missing, or a
-    failing DNS check, as status --help says.
+    failing rule, floor, NAT or DNS check, as status --help says.
 
-A step with a probe runs only where due. The routing's restart and the
-connection's load have none, and run on every install.
+A step with a probe runs only where due. The connection's load has none, and
+runs on every install.
 
 The profile's files are those ikev2setup.sh writes, named alike, each given
 by its path:

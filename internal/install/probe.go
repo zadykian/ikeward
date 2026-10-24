@@ -102,7 +102,24 @@ func (p *probes) timer() string { return p.active(Timer) }
 
 // checks is status's view of the system, whose checks read what the steps make.
 func (p *probes) checks() status.System {
-	return status.System{Network: p.s.Network, Runner: p.s.Runner, Files: p.s.Files}
+	return status.System{Network: p.s.Network, Runner: p.s.Runner, Files: p.s.Files,
+		NAT: p.s.Tables}
+}
+
+// routing says why ikeward routing must run again: its unit is not active, or the rule, floor or
+// NAT check fails.
+func (p *probes) routing() string {
+	if why := p.active(routing.Unit); why != "" {
+		return why
+	}
+	checks := p.checks()
+	for _, r := range []status.Result{checks.CheckRule(), checks.CheckFloor(p.settings),
+		checks.CheckNAT()} {
+		if !r.OK {
+			return fmt.Sprintf("the %s check fails: %s", r.Name, r.Detail)
+		}
+	}
+	return ""
 }
 
 // network says why networkd must read its files again: files.Link is missing, or lacks its own
