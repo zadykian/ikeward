@@ -74,8 +74,8 @@ func TestInstall(t *testing.T) {
 	}
 }
 
-// Run again on the system it set up, install writes nothing and installs nothing. It takes no
-// step that a probe finds not due, but those with no probe run all the same.
+// Run again on the system it set up, install writes nothing, installs nothing and takes no step,
+// as no probe finds one due.
 func TestInstallAgain(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
@@ -84,22 +84,15 @@ func TestInstallAgain(t *testing.T) {
 	if err := onHome(f, r, &out).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
-	if len(f.writes) > 0 || len(f.removes) > 0 {
-		t.Errorf("wrote %q and removed %q", f.writes, f.removes)
+	if len(f.writes) > 0 || len(f.removes) > 0 || len(r.ran()) > 0 {
+		t.Errorf("wrote %q, removed %q and ran %q", f.writes, f.removes, r.ran())
 	}
-	commands := []string{
-		"swanctl --load-all --noprompt",
-	}
-	checkLines(t, "the commands", r.ran(), commands)
-	wantOut := []string{"Left 12 of the 12 files as they were"}
-	for _, line := range commands {
-		wantOut = append(wantOut, "Running "+line)
-	}
-	checkLines(t, "the output", outputLines(t, out.String()), wantOut)
+	checkLines(t, "the output", outputLines(t, out.String()),
+		[]string{"Left 12 of the 12 files as they were"})
 }
 
-// install writes only the files that differ, in content or in mode, and names the file that
-// makes each step due. It restarts no daemon whose settings stay.
+// install writes only the files that differ, in content or in mode, and takes the steps that
+// read them alone. It restarts no daemon whose settings stay.
 func TestInstallChanges(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
@@ -152,8 +145,7 @@ func TestInstallStale(t *testing.T) {
 	if got, want := f.files[Record].data, recordOf(paths...); !bytes.Equal(got, want) {
 		t.Errorf("the record is\n%s\nwant\n%s", got, want)
 	}
-	got := outputLines(t, out.String())
-	checkLines(t, "the output", got[:8], []string{
+	checkLines(t, "the output", outputLines(t, out.String()), []string{
 		"Updated " + connection,
 		"Created /etc/swanctl/x509/after-cert.pem",
 		"Updated /etc/swanctl/x509ca/ikeward-ca.pem",
@@ -162,5 +154,6 @@ func TestInstallStale(t *testing.T) {
 		"Removed " + stale[0],
 		"Removed " + stale[1],
 		"Updated " + Record,
+		"Running swanctl --load-all --noprompt, as " + stale[0] + " changes",
 	})
 }

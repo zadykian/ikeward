@@ -16,7 +16,7 @@ const (
 
 // step is a command that has the system take up install's files. Install takes it only where due:
 // where it changes a file the step reads, an earlier install owes it, or its probe finds the
-// system needs it. A step with no probe runs on every install.
+// system needs it.
 type step struct {
 	command []string
 	// reads are the files the step takes up: paths, and directories that end in a slash.
@@ -46,7 +46,8 @@ var steps = []step{
 		own:     []string{"/etc/strongswan.d/"}, probe: (*probes).strongSwan},
 	// strongSwan loads the files under /etc/swanctl as it starts, but not as it runs. A change
 	// of the networks replaces the CHILD SA in the same IKE SA: the tunnel pauses for a moment.
-	{command: []string{"swanctl", "--load-all", "--noprompt"}, reads: []string{"/etc/swanctl/"}},
+	{command: []string{"swanctl", "--load-all", "--noprompt"}, reads: []string{"/etc/swanctl/"},
+		probe: (*probes).loaded},
 	// Last, once the connection is loaded, which the watchdog checks.
 	{command: []string{"systemctl", "start", Timer}, reads: []string{unitDir + Timer},
 		probe: (*probes).timer},
@@ -91,9 +92,6 @@ func (st step) due(p *probes, changed []string, owed owed) *due {
 	if path, ok := changedIn(changed, st.reads); ok {
 		return &due{why: path + " changes"}
 	}
-	if st.probe == nil {
-		return nil
-	}
 	if why := st.probe(p); why != "" {
 		return &due{why: why}
 	}
@@ -125,12 +123,9 @@ func (p plan) lines() []string {
 }
 
 // take runs the steps that plan holds due, in order, saying why each is, or in a dry run says it
-// would. A step with no probe runs all the same, with no reason given.
+// would.
 func (s System) take(out *printer, plan plan) error {
 	for i, d := range plan {
-		if d == nil && steps[i].probe == nil {
-			d = &due{}
-		}
 		if d == nil {
 			continue
 		}

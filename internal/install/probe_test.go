@@ -3,8 +3,6 @@ package install
 import (
 	"bytes"
 	"errors"
-	"slices"
-	"strings"
 	"testing"
 
 	"github.com/zadykian/ikeward/internal/files"
@@ -16,6 +14,7 @@ type fakes struct {
 	runner  *fakeRunner
 	network *fakeNetwork
 	tables  *fakeTables
+	charon  *fakeCharon
 }
 
 // probeCase is a probe that finds a system that install set up otherwise, as setUp leaves it.
@@ -27,7 +26,7 @@ type probeCase struct {
 }
 
 // checkProbes runs a dry run of install for each of cases, which must take the steps want names
-// alone, but for those with no probe, which run all the same.
+// alone.
 func checkProbes(t *testing.T, cases []probeCase) {
 	t.Helper()
 	for _, test := range cases {
@@ -37,7 +36,7 @@ func checkProbes(t *testing.T, cases []probeCase) {
 			installOn(t, f, r, p)
 			var out bytes.Buffer
 			s := dryRunOn(f, r, &out)
-			fs := fakes{r, s.Network.(*fakeNetwork), s.Tables.(*fakeTables)}
+			fs := fakes{r, s.Network.(*fakeNetwork), s.Tables.(*fakeTables), s.Charon.(*fakeCharon)}
 			test.setUp(fs)
 			if err := s.Install(t.Context(), p, settings); err != nil {
 				t.Fatal(err)
@@ -46,18 +45,9 @@ func checkProbes(t *testing.T, cases []probeCase) {
 			for _, line := range test.want {
 				wantOut = append(wantOut, "Would run "+line)
 			}
-			checkLines(t, "the output", probed(outputLines(t, out.String())), wantOut)
+			checkLines(t, "the output", outputLines(t, out.String()), wantOut)
 		})
 	}
-}
-
-// probed are lines but those of the steps with no probe, which run on every install.
-func probed(lines []string) []string {
-	return slices.DeleteFunc(lines, func(line string) bool {
-		return slices.ContainsFunc(steps, func(st step) bool {
-			return st.probe == nil && line == "Would run "+strings.Join(st.command, " ")
-		})
-	})
 }
 
 // What systemctl show says of a unit makes its steps due: systemd reloads one changed on disk or
@@ -118,5 +108,23 @@ func TestNetworkProbes(t *testing.T) {
 		{"NAT", func(f fakes) { f.tables.tables = nil }, []string{
 			routingUnit + ", as the NAT check fails: there is no table ip ikeward: a forwarded " +
 				"network's traffic leaves ikeward0 from its own address, which no SA takes"}},
+	})
+}
+
+// charon lacking the connection, the profile's certificate or key, or the CA has swanctl load the
+// files again, as charon failing to answer does.
+func TestCharonProbes(t *testing.T) {
+	load := "swanctl --load-all --noprompt"
+	checkProbes(t, []probeCase{
+		{"strongSwan unasked", func(f fakes) { f.charon.err = errors.New("/run/charon.vici: gone") },
+			[]string{load + ", as strongSwan cannot be asked: /run/charon.vici: gone"}},
+		{"no connection", func(f fakes) { f.charon.noConn = true },
+			[]string{load + ", as strongSwan has not loaded the connection ikeward"}},
+		{"no certificate", func(f fakes) { f.charon.noCert = true },
+			[]string{load + ", as strongSwan has not loaded the profile's certificate"}},
+		{"no key", func(f fakes) { f.charon.noKey = true },
+			[]string{load + ", as strongSwan has not loaded the profile's key"}},
+		{"no CA", func(f fakes) { f.charon.noCA = true },
+			[]string{load + ", as strongSwan has not loaded the CA's certificate"}},
 	})
 }

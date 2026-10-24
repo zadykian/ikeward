@@ -32,18 +32,16 @@ values, as root:
     strongSwan restarts where its own settings changed, as it reads them only
     as it starts.
 
-Install says why a step is due. It is due where:
+A step runs only where it is due, and install says why. It is due where:
 
   - install changes a file the step reads;
   - an earlier install that stopped half way owes it, as
     ` + install.Journal + ` names the steps due from before the files
     change until install ends;
   - or a probe finds that the system needs it: a unit disabled, stopped or
-    changed on disk, the link ` + files.Link + ` or its own address missing, or a
-    failing rule, floor, NAT or DNS check, as status --help says.
-
-A step with a probe runs only where due. The connection's load has none, and
-runs on every install.
+    changed on disk, the link ` + files.Link + ` or its own address missing, a failing
+    rule, floor, NAT or DNS check, as status --help says, or strongSwan
+    lacking the connection or its certificates.
 
 The profile's files are those ikev2setup.sh writes, named alike, each given
 by its path:
@@ -152,5 +150,5 @@ func newInstall(sys system) *cobra.Command {
 // installer is install's and uninstall's view of sys, saying what they do on command's output.
 func (s system) installer(command *cobra.Command, dryRun bool) install.System {
 	return install.System{Files: s.files, Runner: s.runner, Tables: s.nat, Network: s.network,
-		Out: command.OutOrStdout(), DryRun: dryRun}
+		Charon: s.charon, Out: command.OutOrStdout(), DryRun: dryRun}
 }

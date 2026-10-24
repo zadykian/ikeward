@@ -1,26 +1,35 @@
 package install
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"net/netip"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/zadykian/ikeward/internal/files"
+	"github.com/zadykian/ikeward/internal/profile"
 	"github.com/zadykian/ikeward/internal/routing"
 	"github.com/zadykian/ikeward/internal/status"
 )
 
+// askTimeout bounds the wait for strongSwan's answers, as status's does.
+const askTimeout = 10 * time.Second
+
 // probes look at the system for the steps, and change nothing. A probe that fails to look says
 // why, which makes its step due. units keeps what systemctl show said of each unit asked.
 type probes struct {
+	ctx      context.Context
 	s        System
+	profile  *profile.Profile
 	settings files.Settings
 	units    map[string]unitState
 }
 
-func newProbes(s System, settings files.Settings) *probes {
-	return &probes{s: s, settings: settings, units: map[string]unitState{}}
+func newProbes(ctx context.Context, s System, p *profile.Profile, settings files.Settings) *probes {
+	return &probes{ctx: ctx, s: s, profile: p, settings: settings, units: map[string]unitState{}}
 }
 
 // unitState is what systemctl show says of a unit: its load, active and unit file states, and
@@ -142,6 +151,36 @@ func (p *probes) network() string {
 	}
 	if r := p.checks().CheckDNS(p.settings); !r.OK {
 		return "the DNS check fails: " + r.Detail
+	}
+	return ""
+}
+
+// loaded says why swanctl must load its files again: charon lacks the connection, the profile's
+// certificate or key, or the CA's certificate. Its other settings go unchecked.
+func (p *probes) loaded() string {
+	ctx, cancel := context.WithTimeout(p.ctx, askTimeout)
+	defer cancel()
+	has, err := p.s.Charon.HasConn(ctx, files.Connection)
+	switch {
+	case err != nil:
+		return "strongSwan cannot be asked: " + err.Error()
+	case !has:
+		return "strongSwan has not loaded the connection " + files.Connection
+	}
+	certs, err := p.s.Charon.Certs(ctx)
+	if err != nil {
+		return "strongSwan cannot be asked: " + err.Error()
+	}
+	holds := func(der []byte, as func(Cert) bool) bool {
+		return slices.ContainsFunc(certs, func(c Cert) bool { return bytes.Equal(c.DER, der) && as(c) })
+	}
+	switch {
+	case !holds(p.profile.Certificate.Raw, func(Cert) bool { return true }):
+		return "strongSwan has not loaded the profile's certificate"
+	case !holds(p.profile.Certificate.Raw, func(c Cert) bool { return c.Key }):
+		return "strongSwan has not loaded the profile's key"
+	case !holds(p.profile.CA.Raw, func(c Cert) bool { return c.CA }):
+		return "strongSwan has not loaded the CA's certificate"
 	}
 	return ""
 }

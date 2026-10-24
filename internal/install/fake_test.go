@@ -1,11 +1,14 @@
 package install
 
 import (
+	"context"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/fs"
 	"maps"
 	"net/netip"
+	"path"
 	"slices"
 	"strings"
 
@@ -239,4 +242,38 @@ func (f *fakeNetwork) RemoveRoutes(table int) (int, error) {
 	n := len(f.routes[table])
 	delete(f.routes, table)
 	return n, nil
+}
+
+// fakeCharon is charon as it loads the files on files. It has the connection where its file is
+// there, and the certificates of /etc/swanctl/x509, with their key where /etc/swanctl/private
+// holds one. It holds those of /etc/swanctl/x509ca as a CA's. Where err is set, it fails, and the
+// no fields leave out what they name.
+type fakeCharon struct {
+	files                       *fakeFiles
+	err                         error
+	noConn, noCert, noKey, noCA bool
+}
+
+func (c *fakeCharon) HasConn(_ context.Context, name string) (bool, error) {
+	_, ok := c.files.files["/etc/swanctl/conf.d/"+name+".conf"]
+	return ok && !c.noConn, c.err
+}
+
+func (c *fakeCharon) Certs(context.Context) ([]Cert, error) {
+	key := slices.ContainsFunc(c.files.paths(), func(p string) bool {
+		return strings.HasPrefix(p, "/etc/swanctl/private/")
+	})
+	var certs []Cert
+	for _, p := range c.files.paths() {
+		dir, _ := path.Split(p)
+		block, _ := pem.Decode(c.files.files[p].data)
+		switch {
+		case block == nil:
+		case dir == "/etc/swanctl/x509/" && !c.noCert:
+			certs = append(certs, Cert{DER: block.Bytes, Key: key && !c.noKey})
+		case dir == "/etc/swanctl/x509ca/" && !c.noCA:
+			certs = append(certs, Cert{DER: block.Bytes, CA: true})
+		}
+	}
+	return certs, c.err
 }

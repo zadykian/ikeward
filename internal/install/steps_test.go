@@ -38,7 +38,7 @@ func TestStepsReadFiles(t *testing.T) {
 		if test.changed != "" {
 			changed = []string{test.changed}
 		}
-		got := s.plan(newProbes(s, settings), changed, owed{}).lines()
+		got := s.plan(newProbes(t.Context(), s, p, settings), changed, owed{}).lines()
 		checkLines(t, "the steps due as "+test.changed+" changes", got, test.want)
 	}
 }

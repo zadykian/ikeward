@@ -43,19 +43,18 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
   makes the table `ip ikeward` anew, in one transaction, with a postrouting NAT chain at priority
   99, before Docker's, and one rule: `oifname "ikeward0" counter masquerade`. Where a part fails, it
   makes the others, then fails. Tests fake `Kernel`, `NAT` and `Files`.
-- `internal/install`: `install` and `uninstall`, with `--dry-run`. `install` takes its seven
-  steps, from `systemctl daemon-reload` to the watchdog's timer, where due. That's where it
-  changes a file the step reads, the journal owes it, or the step's probe finds the system needs
+- `internal/install`: `install` and `uninstall`, with `--dry-run`. `install` takes each of its
+  seven steps, from `systemctl daemon-reload` to the watchdog's timer, only where due. That's where
+  it changes a file the step reads, the journal owes it, or the step's probe finds the system needs
   it. The probes read the units through `systemctl show`, and `ikeward0` and its address. Then
-  `status`'s rule, floor, NAT and DNS checks. A step with no probe runs on every install: the
-  connection's load.
+  `status`'s rule, floor, NAT and DNS checks, and the connection and certificates charon loaded.
   `/var/lib/ikeward/pending-steps`, the journal, names the steps due from before `install` changes
-  a file until it ends, for a rerun where it stopped half way.
-  v0.2.0's `/var/lib/ikeward/pending-restarts` owes every step. `install` restarts the routing's
-  unit before strongSwan starts. `uninstall` stops strongSwan, then the routing's unit, then
-  removes `ip ikeward`, the rules and table 220's routes. The files `/var/lib/ikeward/installed`
-  lists go with `routing.Learned` and both journals, and `ikeward0` last. Tests fake `Files`,
-  `Runner`, `Tables` and `Network`, which adds links, and the removal of rules and routes, to
+  a file until it ends, for a rerun where it stopped half way. v0.2.0's
+  `/var/lib/ikeward/pending-restarts` owes every step. `install` restarts the routing's unit before
+  strongSwan starts. `uninstall` stops strongSwan, then the routing's unit, then removes
+  `ip ikeward`, the rules and table 220's routes. The files `/var/lib/ikeward/installed` lists go
+  with `routing.Learned` and both journals, and `ikeward0` last. Tests fake `Files`, `Runner`,
+  `Tables`, `Charon` and `Network`, which adds links, and the removal of rules and routes, to
   `status.Network`.
 - `internal/status`: `status`, the watchdog's checks, read-only. They read the IKE SA and the CHILD
   SA through VICI, and through netlink, the address on `ikeward0`, the rules, and table 220's routes

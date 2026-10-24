@@ -16,8 +16,8 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
 - Unit tests never touch the host's VPN or network. None runs `swanctl`, `ip`, `nft`, `resolvectl`
   or `systemctl`, or opens VICI, netlink or nftables on the host.
 - A package's tests reach the system through its small interfaces, with fakes: `Files`, `Runner`,
-  `Route`, `NAT`, `Kernel`, `Tables`, `Tunnel`, `Network`, `Resolver`, `Checker` and `Clock`, as
-  CLAUDE.md's layout lists them.
+  `Route`, `NAT`, `Kernel`, `Tables`, `Tunnel`, `Charon`, `Network`, `Resolver`, `Checker` and
+  `Clock`, as CLAUDE.md's layout lists them.
 - `internal/host`'s tests touch a temporary directory, in-memory pipes and fakes. A fake charon
   listens on a socket in a temporary directory, a fake kernel answers nftables' batches and reads,
   and a fake DNS server answers on a pipe. They run sh alone, through `host.Commands`, and no

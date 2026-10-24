@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/pem"
 	"errors"
 	"io/fs"
 	"net/netip"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/zadykian/ikeward/internal/files"
 	"github.com/zadykian/ikeward/internal/host"
+	"github.com/zadykian/ikeward/internal/install"
 	"github.com/zadykian/ikeward/internal/profile/profiletest"
 	"github.com/zadykian/ikeward/internal/routing"
 	"github.com/zadykian/ikeward/internal/status"
@@ -63,6 +65,31 @@ func (r *fakeRunner) Run(name string, args ...string) (string, error) {
 		return healthyUnit, nil
 	}
 	return "", nil
+}
+
+// fakeCharon is strongSwan's charon as swanctl --load-all leaves it. It holds what files has of
+// install's files for the profile client: the connection, the client's certificate with its key,
+// and the CA's certificate.
+type fakeCharon struct{ files install.Files }
+
+func (c fakeCharon) HasConn(_ context.Context, name string) (bool, error) {
+	_, _, err := c.files.Read("/etc/swanctl/conf.d/" + name + ".conf")
+	return err == nil, nil
+}
+
+func (c fakeCharon) Certs(context.Context) ([]install.Cert, error) {
+	_, _, noKey := c.files.Read("/etc/swanctl/private/client-key.pem")
+	var certs []install.Cert
+	for _, f := range []struct {
+		path string
+		ca   bool
+	}{{"/etc/swanctl/x509/client-cert.pem", false}, {"/etc/swanctl/x509ca/" + files.CACert, true}} {
+		data, _, err := c.files.Read(f.path)
+		if block, _ := pem.Decode(data); err == nil && block != nil {
+			certs = append(certs, install.Cert{DER: block.Bytes, CA: f.ca, Key: !f.ca && noKey == nil})
+		}
+	}
+	return certs, nil
 }
 
 // fakeNAT is ikeward's NAT table, missing where missing says, beside other tables that tables
@@ -230,6 +257,7 @@ func newFakeSystem(t *testing.T, stdin string) *fakeSystem {
 	f.system = system{
 		stdin: strings.NewReader(stdin), stdout: &f.out, stderr: &f.errOut,
 		terminal: &f.term, files: host.Root(f.root), runner: &f.ran, nat: &f.nat,
+		charon:  fakeCharon{host.Root(f.root)},
 		network: f.kernel, names: &f.names, euid: func() int { return f.uid },
 		runsAs: func(path string) (string, bool, error) {
 			if f.program == "" {

@@ -96,10 +96,11 @@ func installOn(t *testing.T, f *fakeFiles, r *fakeRunner, p *profile.Profile) {
 	f.writes, f.removes, r.commands = nil, nil, nil
 }
 
-// onHome is install's system on f and r, on home's kernel, with ikeward's NAT table, saying what
-// it does on out.
+// onHome is install's system on f and r, on home's kernel and NAT table, with a charon that loaded
+// f's files. It says what it does on out.
 func onHome(f *fakeFiles, r *fakeRunner, out io.Writer) System {
-	return System{Files: f, Runner: r, Out: out, Network: home(), Tables: withNAT()}
+	return System{Files: f, Runner: r, Out: out, Network: home(), Tables: withNAT(),
+		Charon: &fakeCharon{files: f}}
 }
 
 // dryRunOn is onHome's system in a dry run.

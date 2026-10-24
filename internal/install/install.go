@@ -2,10 +2,10 @@
 //
 // Install installs strongSwan's packages where they are missing, and writes the files
 // internal/files makes from the profile and the settings where they differ. It then has systemd,
-// networkd and strongSwan take them up, ikeward's routing before strongSwan. Uninstall removes
-// install's files again, the rules, files.Table's routes, the NAT table and files.Link. Both reach
-// the system through Files, Runner, Tables and Network, and with DryRun print what they would
-// change, and change nothing.
+// networkd and strongSwan take them up, ikeward's routing before strongSwan, in the steps due
+// alone. Uninstall removes install's files again, the rules, files.Table's routes, the NAT table
+// and files.Link. Both reach the system through Files, Runner, Tables and Network, and install
+// reads Charon too. With DryRun, they print what they would change, and change nothing.
 package install
 
 import (
@@ -110,6 +110,7 @@ type System struct {
 	Runner  Runner
 	Tables  Tables
 	Network Network
+	Charon  Charon
 	// Out is where they say what they do.
 	Out io.Writer
 	// DryRun has them say what they would do, and do nothing that changes the system.
@@ -130,8 +131,8 @@ func (p *printer) printf(format string, args ...any) {
 }
 
 // Install installs the VPN from p, with settings, the remote network's values. It installs
-// strongSwan's packages where missing, and writes the files that differ. It then runs the commands
-// that take them up.
+// strongSwan's packages where missing, and writes the files that differ. It then runs the steps
+// due, which take them up.
 func (s System) Install(ctx context.Context, p *profile.Profile, settings files.Settings) error {
 	generated, err := files.Generate(p, settings)
 	if err != nil {
@@ -159,7 +160,7 @@ func (s System) Install(ctx context.Context, p *profile.Profile, settings files.
 	if err != nil {
 		return err
 	}
-	plan := s.plan(newProbes(s, settings), u.changed(), owed)
+	plan := s.plan(newProbes(ctx, s, p, settings), u.changed(), owed)
 	// Journal lists the steps before any file changes, so that a rerun takes them where this run
 	// stops half way.
 	if err := s.writeJournal(owed, plan); err != nil {
