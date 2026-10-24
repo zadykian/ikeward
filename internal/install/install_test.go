@@ -21,8 +21,9 @@ func TestInstall(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner("strongswan", "strongswan-swanctl")
 	var out bytes.Buffer
-	if err := onHome(f, r, &out).Install(t.Context(), p, settings); err != nil {
-		t.Fatal(err)
+	changed, err := onHome(f, r, &out).Install(t.Context(), p, settings)
+	if err != nil || !changed {
+		t.Fatalf("Install: %v, %v", changed, err)
 	}
 
 	files := want(t, p)
@@ -75,14 +76,15 @@ func TestInstall(t *testing.T) {
 }
 
 // Run again on the system it set up, install writes nothing, installs nothing and takes no step,
-// as no probe finds one due.
+// as no probe finds one due, and says it changed nothing.
 func TestInstallAgain(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
 	installOn(t, f, r, p)
 	var out bytes.Buffer
-	if err := onHome(f, r, &out).Install(t.Context(), p, settings); err != nil {
-		t.Fatal(err)
+	changed, err := onHome(f, r, &out).Install(t.Context(), p, settings)
+	if err != nil || changed {
+		t.Fatalf("Install: %v, %v", changed, err)
 	}
 	if len(f.writes) > 0 || len(f.removes) > 0 || len(r.ran()) > 0 {
 		t.Errorf("wrote %q, removed %q and ran %q", f.writes, f.removes, r.ran())
@@ -96,7 +98,7 @@ func TestInstallAgain(t *testing.T) {
 func TestInstallChanges(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
-	if err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings); err != nil {
+	if _, err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
 	key := "/etc/swanctl/private/client-key.pem"
@@ -106,7 +108,7 @@ func TestInstallChanges(t *testing.T) {
 	f.writes, r.commands = nil, nil
 
 	var out bytes.Buffer
-	if err := onHome(f, r, &out).Install(t.Context(), p, settings); err != nil {
+	if _, err := onHome(f, r, &out).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
 	checkLines(t, "the files written", f.writes, []string{Journal, connection, timer, key})
@@ -131,7 +133,7 @@ func TestInstallStale(t *testing.T) {
 	installOn(t, f, r, newProfile(t, "before"))
 	p := newProfile(t, "after")
 	var out bytes.Buffer
-	if err := onHome(f, r, &out).Install(t.Context(), p, settings); err != nil {
+	if _, err := onHome(f, r, &out).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
 	stale := []string{"/etc/swanctl/x509/before-cert.pem", "/etc/swanctl/private/before-key.pem"}

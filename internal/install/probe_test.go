@@ -25,8 +25,8 @@ type probeCase struct {
 	want  []string
 }
 
-// checkProbes runs a dry run of install for each of cases, which must take the steps want names
-// alone.
+// checkProbes runs a dry run of install for each of cases, which must say it would change the
+// system, and take the steps want names alone.
 func checkProbes(t *testing.T, cases []probeCase) {
 	t.Helper()
 	for _, test := range cases {
@@ -38,8 +38,9 @@ func checkProbes(t *testing.T, cases []probeCase) {
 			s := dryRunOn(f, r, &out)
 			fs := fakes{r, s.Network.(*fakeNetwork), s.Tables.(*fakeTables), s.Charon.(*fakeCharon)}
 			test.setUp(fs)
-			if err := s.Install(t.Context(), p, settings); err != nil {
-				t.Fatal(err)
+			changed, err := s.Install(t.Context(), p, settings)
+			if err != nil || !changed {
+				t.Fatalf("Install: %v, %v", changed, err)
 			}
 			wantOut := []string{"Left 12 of the 12 files as they were"}
 			for _, line := range test.want {

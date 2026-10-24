@@ -25,7 +25,7 @@ func TestInstallHalfWay(t *testing.T) {
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
 	paths := pathsOf(want(t, p))
 	f.failWrite[paths[3]] = errors.New("no space left on device")
-	err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings)
+	_, err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings)
 	if want := "cannot write " + paths[3] + ": no space left on device"; err == nil ||
 		err.Error() != want {
 		t.Fatalf("Install: %v, want %s", err, want)
@@ -67,7 +67,7 @@ func TestInstallRerun(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			f, r := newFakeFiles(), newFakeRunner(Packages...)
 			test.setUp(t, f, r)
-			if err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings); err == nil {
+			if _, err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings); err == nil {
 				t.Fatal("Install did not fail")
 			}
 			if got := f.files[Journal].data; !bytes.Equal(got, journalOf(restartBoth...)) {
@@ -75,7 +75,7 @@ func TestInstallRerun(t *testing.T) {
 			}
 			f.failWrite, r.fail, r.commands = map[string]error{}, map[string]error{}, nil
 			var out bytes.Buffer
-			if err := onHome(f, r, &out).Install(t.Context(), p, settings); err != nil {
+			if _, err := onHome(f, r, &out).Install(t.Context(), p, settings); err != nil {
 				t.Fatal(err)
 			}
 			checkLines(t, "the commands", r.ran(), restartBoth)
@@ -107,7 +107,7 @@ func TestInstallRerunStale(t *testing.T) {
 	restarts := []string{"systemctl restart systemd-networkd.service",
 		"systemctl restart strongswan.service"}
 	r.fail[restarts[0]] = errors.New("exit status 1")
-	err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings)
+	_, err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings)
 	if want := restarts[0] + ": exit status 1"; err == nil || err.Error() != want {
 		t.Fatalf("Install: %v, want %s", err, want)
 	}
@@ -117,7 +117,7 @@ func TestInstallRerunStale(t *testing.T) {
 	}
 
 	f.removes, r.fail, r.commands = nil, map[string]error{}, nil
-	if err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings); err != nil {
+	if _, err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
 	checkLines(t, "the files removed", f.removes, []string{Journal})

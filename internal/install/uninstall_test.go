@@ -16,7 +16,7 @@ func installed(t *testing.T) (*fakeFiles, []string) {
 	t.Helper()
 	p := newProfile(t, "client")
 	f := newFakeFiles()
-	err := onHome(f, newFakeRunner(Packages...), &bytes.Buffer{}).Install(t.Context(), p,
+	_, err := onHome(f, newFakeRunner(Packages...), &bytes.Buffer{}).Install(t.Context(), p,
 		settings)
 	if err != nil {
 		t.Fatal(err)

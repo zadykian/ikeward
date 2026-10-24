@@ -76,6 +76,11 @@ func (u update) changed() []string {
 	return changed
 }
 
+// differs is whether install changes a file, Record among them.
+func (u update) differs() bool {
+	return len(u.changes) > 0 || len(u.stale) > 0 || !slices.Equal(u.record, u.paths())
+}
+
 // write writes the files of u that differ on the system and removes the stale ones, naming each.
 // It keeps Record listing the files install wrote, and names it where it changes. A dry run prints
 // the changes as diffs, but for a file only root may read, and writes nothing.

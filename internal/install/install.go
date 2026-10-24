@@ -132,50 +132,53 @@ func (p *printer) printf(format string, args ...any) {
 
 // Install installs the VPN from p, with settings, the remote network's values. It installs
 // strongSwan's packages where missing, and writes the files that differ. It then runs the steps
-// due, which take them up.
-func (s System) Install(ctx context.Context, p *profile.Profile, settings files.Settings) error {
+// due, which take them up. It returns whether it changed the system, or in a dry run would.
+func (s System) Install(ctx context.Context, p *profile.Profile, settings files.Settings) (
+	bool, error) {
 	generated, err := files.Generate(p, settings)
 	if err != nil {
-		return err
+		return false, err
 	}
 	credentials, err := files.Credentials(p)
 	if err != nil {
-		return err
+		return false, err
 	}
 	out := &printer{w: s.Out}
 	out.printf("The profile gives:\n")
 	for _, line := range p.Summary() {
 		out.printf("  %s\n", line)
 	}
-	if missing := s.missing(); len(missing) > 0 {
+	missing := s.missing()
+	if len(missing) > 0 {
 		if err := s.installPackages(out, missing); err != nil {
-			return err
+			return true, err
 		}
 	}
 	owed, err := s.owed()
 	if err != nil {
-		return err
+		return len(missing) > 0, err
 	}
 	u, err := s.update(append(generated, credentials...))
 	if err != nil {
-		return err
+		return len(missing) > 0, err
 	}
 	plan := s.plan(newProbes(ctx, s, p, settings), u.changed(), owed)
+	changed := len(missing) > 0 || u.differs() || plan.due()
 	// Journal lists the steps before any file changes, so that a rerun takes them where this run
 	// stops half way.
 	if err := s.writeJournal(owed, plan); err != nil {
-		return err
+		return changed, err
 	}
 	if err := s.write(out, u); err != nil {
-		return err
+		return changed, err
 	}
 	if err := s.take(out, plan); err != nil {
-		return err
+		return changed, err
 	}
 	if err := s.ended(owed, plan); err != nil {
-		return err
+		return changed, err
 	}
-	return out.err
+	return changed, out.err
 }
 
 // missing returns the packages of Packages that dpkg has not installed; one that dpkg-query does

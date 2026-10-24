@@ -90,7 +90,7 @@ func pendingOf(units ...string) []byte {
 // installOn runs install for p on f and r, which must succeed, then clears what they recorded.
 func installOn(t *testing.T, f *fakeFiles, r *fakeRunner, p *profile.Profile) {
 	t.Helper()
-	if err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings); err != nil {
+	if _, err := onHome(f, r, &bytes.Buffer{}).Install(t.Context(), p, settings); err != nil {
 		t.Fatal(err)
 	}
 	f.writes, f.removes, r.commands = nil, nil, nil
