@@ -12,21 +12,36 @@ import (
 
 // record reads Record, the files install wrote, each a clean, absolute path on a line of its own.
 func (s System) record() ([]string, error) {
-	data, _, err := s.Files.Read(Record)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read %s: %w", Record, err)
+	paths, exists, err := s.list(Record, "a clean, absolute path", func(line string) bool {
+		return path.IsAbs(line) && path.Clean(line) == line
+	})
+	if err == nil && !exists {
+		err = fmt.Errorf("cannot read %s: %w", Record, fs.ErrNotExist)
 	}
-	var paths []string
+	return paths, err
+}
+
+// list reads the lines of the file at name but blank ones and comments, which start with #. Each
+// must be what valid takes, which what names. exists is whether there is the file.
+func (s System) list(name, what string, valid func(string) bool) ([]string, bool, error) {
+	data, _, err := s.Files.Read(name)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return nil, false, nil
+	case err != nil:
+		return nil, false, fmt.Errorf("cannot read %s: %w", name, err)
+	}
+	var lines []string
 	for i, line := range strings.Split(string(data), "\n") {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		if !path.IsAbs(line) || path.Clean(line) != line {
-			return nil, fmt.Errorf("%s: line %d: %q is not a clean, absolute path", Record, i+1, line)
+		if !valid(line) {
+			return nil, true, fmt.Errorf("%s: line %d: %q is not %s", name, i+1, line, what)
 		}
-		paths = append(paths, line)
+		lines = append(lines, line)
 	}
-	return paths, nil
+	return lines, true, nil
 }
 
 // writeRecord writes Record as listing paths, where it lists old.
@@ -55,25 +70,13 @@ type restarts struct {
 
 // pending reads Pending, a daemon's unit on each line; where there is none, it lists none.
 func (s System) pending() (*restarts, error) {
-	data, _, err := s.Files.Read(Pending)
-	switch {
-	case errors.Is(err, fs.ErrNotExist):
-		return &restarts{}, nil
-	case err != nil:
-		return nil, fmt.Errorf("cannot read %s: %w", Pending, err)
+	listed, recorded, err := s.list(Pending, "a daemon install restarts", func(line string) bool {
+		return line == networkd || line == StrongSwan
+	})
+	if err != nil {
+		return nil, err
 	}
-	var listed []string
-	for i, line := range strings.Split(string(data), "\n") {
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		if line != networkd && line != StrongSwan {
-			return nil, fmt.Errorf("%s: line %d: %q is not a daemon install restarts", Pending,
-				i+1, line)
-		}
-		listed = append(listed, line)
-	}
-	r := &restarts{recorded: true}
+	r := &restarts{recorded: recorded}
 	for _, st := range steps {
 		if unit := st.restart; unit != nil && slices.Contains(listed, unit[len(unit)-1]) {
 			r.units = append(r.units, unit[len(unit)-1])
