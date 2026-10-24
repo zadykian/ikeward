@@ -38,11 +38,11 @@ Install says why a step is due. It is due where:
   - an earlier install that stopped half way owes it, as
     ` + install.Journal + ` names the steps due from before the files
     change until install ends;
-  - or a probe finds that the system needs it: a unit changed on disk or not
-    loaded, which calls for systemd's reload.
+  - or a probe finds that the system needs it: a unit disabled, stopped or
+    changed on disk.
 
-systemd's reload runs only where due. The other steps have no probe, and run
-on every install.
+A step with a probe runs only where due. networkd's reload, the routing's
+restart and the connection's load have none, and run on every install.
 
 The profile's files are those ikev2setup.sh writes, named alike, each given
 by its path:

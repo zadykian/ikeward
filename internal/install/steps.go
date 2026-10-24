@@ -36,19 +36,20 @@ var steps = []step{
 		restart: []string{"systemctl", "restart", networkd},
 		own:     []string{"/etc/systemd/networkd.conf.d/"}},
 	{command: []string{"systemctl", "enable", routing.Unit, StrongSwan, Timer},
-		reads: []string{unitDir + routing.Unit, unitDir + Timer}},
+		reads: []string{unitDir + routing.Unit, unitDir + Timer}, probe: (*probes).enabled},
 	// The service adds what is missing of the rules and the floors, and makes the NAT table
 	// anew. No traffic to the remote network then takes the default route as the tunnel comes up.
 	{command: []string{"systemctl", "restart", routing.Unit},
 		reads: []string{unitDir + routing.Unit, files.SettingsFile}},
 	{command: []string{"systemctl", "start", StrongSwan},
 		restart: []string{"systemctl", "restart", StrongSwan},
-		own:     []string{"/etc/strongswan.d/"}},
+		own:     []string{"/etc/strongswan.d/"}, probe: (*probes).strongSwan},
 	// strongSwan loads the files under /etc/swanctl as it starts, but not as it runs. A change
 	// of the networks replaces the CHILD SA in the same IKE SA: the tunnel pauses for a moment.
 	{command: []string{"swanctl", "--load-all", "--noprompt"}, reads: []string{"/etc/swanctl/"}},
 	// Last, once the connection is loaded, which the watchdog checks.
-	{command: []string{"systemctl", "start", Timer}, reads: []string{unitDir + Timer}},
+	{command: []string{"systemctl", "start", Timer}, reads: []string{unitDir + Timer},
+		probe: (*probes).timer},
 }
 
 // due is why a step is due, and whether its daemon restarts.

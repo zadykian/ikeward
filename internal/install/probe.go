@@ -75,3 +75,22 @@ func (p *probes) reloaded() string {
 	}
 	return ""
 }
+
+// enabled says why systemctl must enable the units: one is not enabled.
+func (p *probes) enabled() string {
+	for _, name := range []string{routing.Unit, StrongSwan, Timer} {
+		if why := p.state(name, "enabled", func(u unitState) string { return u.file }); why != "" {
+			return why
+		}
+	}
+	return ""
+}
+
+// active says why the unit named name must start: its state, where not active.
+func (p *probes) active(name string) string {
+	return p.state(name, "active", func(u unitState) string { return u.active })
+}
+
+func (p *probes) strongSwan() string { return p.active(StrongSwan) }
+
+func (p *probes) timer() string { return p.active(Timer) }

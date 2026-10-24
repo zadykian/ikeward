@@ -89,11 +89,8 @@ func TestInstallAgain(t *testing.T) {
 	}
 	commands := []string{
 		"networkctl reload",
-		"systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
 		"systemctl restart ikeward-routing.service",
-		"systemctl start strongswan.service",
 		"swanctl --load-all --noprompt",
-		"systemctl start ikeward-watchdog.timer",
 	}
 	checkLines(t, "the commands", r.ran(), commands)
 	wantOut := []string{"Left 12 of the 12 files as they were"}
@@ -133,7 +130,6 @@ func TestInstallChanges(t *testing.T) {
 		"Running systemctl enable ikeward-routing.service strongswan.service " +
 			"ikeward-watchdog.timer, as " + timer + " changes",
 		"Running systemctl restart ikeward-routing.service",
-		"Running systemctl start strongswan.service",
 		"Running swanctl --load-all --noprompt, as " + connection + " changes",
 		"Running systemctl start ikeward-watchdog.timer, as " + timer + " changes",
 	})

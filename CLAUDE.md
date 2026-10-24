@@ -46,8 +46,8 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
 - `internal/install`: `install` and `uninstall`, with `--dry-run`. `install` takes its seven
   steps, from `systemctl daemon-reload` to the watchdog's timer, where due. That's where it
   changes a file the step reads, the journal owes it, or the step's probe finds the system needs
-  it. The probe of `systemctl daemon-reload` reads the units through `systemctl show`. A step
-  with no probe, as each of the others, runs on every install.
+  it. The probes read the units through `systemctl show`. A step with no probe runs on every
+  install: networkd's reload, the routing's restart and the connection's load.
   `/var/lib/ikeward/pending-steps`, the journal, names the steps due from before `install` changes
   a file until it ends, for a rerun where it stopped half way.
   v0.2.0's `/var/lib/ikeward/pending-restarts` owes every step. `install` restarts the routing's

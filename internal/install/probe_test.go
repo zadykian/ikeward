@@ -57,8 +57,8 @@ func probed(lines []string) []string {
 	})
 }
 
-// What systemctl show says of a unit makes systemd's reload due: a unit changed on disk or not
-// loaded. systemctl failing does too.
+// What systemctl show says of a unit makes its steps due: systemd reloads one changed on disk or
+// not loaded, enables one not enabled, and starts one not active. systemctl failing does too.
 func TestUnitProbes(t *testing.T) {
 	failed := errors.New("exit status 1")
 	checkProbes(t, []probeCase{
@@ -66,11 +66,23 @@ func TestUnitProbes(t *testing.T) {
 			[]string{"systemctl daemon-reload, as ikeward-watchdog.service changed on disk"}},
 		{"not loaded", func(f fakes) { f.runner.states[routing.Unit+" LoadState"] = "not-found" },
 			[]string{"systemctl daemon-reload, as ikeward-routing.service is not-found"}},
+		{"disabled", func(f fakes) { f.runner.states[StrongSwan+" UnitFileState"] = "disabled" },
+			[]string{enable + ", as strongswan.service is disabled"}},
+		{"no unit file", func(f fakes) { f.runner.states[Timer+" UnitFileState"] = "" },
+			[]string{enable + ", as ikeward-watchdog.timer is not enabled"}},
+		{"strongSwan stopped", func(f fakes) {
+			f.runner.states[StrongSwan+" ActiveState"] = "inactive"
+		}, []string{"systemctl start strongswan.service, as strongswan.service is inactive"}},
+		{"timer stopped", func(f fakes) { f.runner.states[Timer+" ActiveState"] = "inactive" },
+			[]string{"systemctl start ikeward-watchdog.timer, as ikeward-watchdog.timer is inactive"}},
 		{"systemctl fails", func(f fakes) {
 			f.runner.fail["systemctl show --property=LoadState,ActiveState,UnitFileState,"+
 				"NeedDaemonReload "+Timer] = failed
 		}, []string{
 			"systemctl daemon-reload, as systemctl show ikeward-watchdog.timer fails: exit status 1",
+			enable + ", as systemctl show ikeward-watchdog.timer fails: exit status 1",
+			"systemctl start ikeward-watchdog.timer, as systemctl show ikeward-watchdog.timer " +
+				"fails: exit status 1",
 		}},
 	})
 }

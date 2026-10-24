@@ -81,11 +81,8 @@ func TestInstallDryRunChanges(t *testing.T) {
 		"Would update /etc/swanctl/private/client-key.pem, which only root may read: not shown",
 		"Left 10 of the 12 files as they were",
 		"Would run networkctl reload",
-		"Would run systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
 		"Would run systemctl restart ikeward-routing.service",
-		"Would run systemctl start strongswan.service",
 		"Would run swanctl --load-all --noprompt, as " + connection + " changes",
-		"Would run systemctl start ikeward-watchdog.timer",
 	})
 }
 
@@ -115,7 +112,6 @@ func TestInstallDryRunStale(t *testing.T) {
 		"Would run systemctl enable ikeward-routing.service strongswan.service " +
 			"ikeward-watchdog.timer, as " + timer + " changes",
 		"Would run systemctl restart ikeward-routing.service",
-		"Would run systemctl start strongswan.service",
 		"Would run swanctl --load-all --noprompt, as /etc/swanctl/x509/old-cert.pem changes",
 		"Would run systemctl start ikeward-watchdog.timer, as " + timer + " changes",
 	})
