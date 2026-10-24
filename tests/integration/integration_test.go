@@ -29,10 +29,10 @@ const (
 	otherName = "example.org"
 )
 
-// TestIntegration installs ikeward on a fresh client, and checks the tunnel, the ranges learned,
-// the resolver and status's probe. The names follow as strongSwan stops and the link's own address
-// goes. NAT, a forwarded network, the watchdog, the routes' end, grants refused, the LAN and the
-// floors come next, then a reboot and uninstall. Each step starts where the last left the client.
+// TestIntegration installs ikeward on a fresh client, checks the tunnel and installs again. Next
+// come the ranges learned, the resolver, status's probe, and the names without strongSwan or the
+// link's own address. Then NAT, a forwarded network, the watchdog, the routes' end, grants refused,
+// the LAN, the floors, a reboot and uninstall. Each step starts where the last left the client.
 func TestIntegration(t *testing.T) {
 	if os.Getenv("IKEWARD_INTEGRATION") == "" {
 		t.Skip("runs in Docker Compose, with a privileged container: make integration")
@@ -41,6 +41,7 @@ func TestIntegration(t *testing.T) {
 	// && runs no step after one that failed.
 	_ = t.Run("install", s.install) &&
 		t.Run("tunnel", s.tunnel) &&
+		t.Run("install again", s.installAgain) &&
 		t.Run("learned ranges", s.learned) &&
 		t.Run("resolver", s.resolver) &&
 		t.Run("resolver bound to ikeward0", s.resolverBound) &&

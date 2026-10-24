@@ -94,9 +94,10 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
   `TestGitleaks`, which runs `make gitleaks`, in `profilecheck_test.go`. `makefile_test.go` covers
   the Makefile's recipes and `tools/run -path`, and `lint_file_test.go` `make lint-file`.
 - `tests/integration`: `integration_test.go`, the steps' order and the install, tunnel, resolver,
-  resolver's probe and uninstall steps. `names_test.go`, the names with strongSwan stopped and
-  without `ikeward0`'s own address; `nat_test.go`, the NAT steps and their probe;
-  `watchdog_test.go`, the watchdog's.
+  resolver's probe and uninstall steps. `again_test.go`, install again: a dry run that plans
+  nothing, every step due, and the watchdog's timer disabled by hand, each with `--exit-code`.
+  `names_test.go`, the names with strongSwan stopped and without `ikeward0`'s own address;
+  `nat_test.go`, the NAT steps and their probe; `watchdog_test.go`, the watchdog's.
   `ranges_test.go`, the ranges learned; `refused_test.go`, the grants refused; `floor_test.go`,
   the LAN's and the floors' steps, and their probe; `reboot_test.go`, the reboot.
   `stack_test.go`, the Compose stack; `helpers_test.go`, the install, its exit status, and the
