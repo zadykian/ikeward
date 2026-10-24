@@ -19,10 +19,10 @@ import (
 // version is what --version prints; make build sets it with -ldflags.
 var version = "dev"
 
-// main is the only place ikeward exits: every error comes back here.
+// main is the only place ikeward exits: every error comes back here, and main prints its message.
 func main() {
 	if err := run(os.Args[1:], live()); err != nil {
-		fmt.Fprintf(os.Stderr, "ikeward: %v\n", err)
+		fmt.Fprint(os.Stderr, message(err))
 		os.Exit(exitStatus(err))
 	}
 }
@@ -68,4 +68,9 @@ func exitStatus(err error) int {
 		return 3
 	}
 	return 1
+}
+
+// message is what main prints of err.
+func message(err error) string {
+	return "ikeward: " + err.Error() + "\n"
 }
