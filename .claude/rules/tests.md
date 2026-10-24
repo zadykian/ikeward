@@ -99,5 +99,5 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
   `watchdog_test.go`, the watchdog's.
   `ranges_test.go`, the ranges learned; `refused_test.go`, the grants refused; `floor_test.go`,
   the LAN's and the floors' steps, and their probe; `reboot_test.go`, the reboot.
-  `stack_test.go`, the Compose stack; `helpers_test.go`, the install, waits and reads the steps
-  share.
+  `stack_test.go`, the Compose stack; `helpers_test.go`, the install, its exit status, and the
+  waits and reads the steps share.
