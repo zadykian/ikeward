@@ -87,7 +87,10 @@ forwarding: the server's firewall decides which networks reach the remote
 network, as ufw route allow in on wg0 out on ` + files.Link + ` does.
 
 --dry-run prints what install would change and run, the files as unified diffs
-but for those only root may read, and changes nothing.`
+but for those only root may read, and changes nothing.
+
+--all-steps takes every step, due or not, as earlier versions did. It is for a
+change no probe sees, such as a connection loaded by hand under the same name.`
 
 // changesSettings is what install and uninstall do that calls for root.
 const changesSettings = "changes the system's settings"
@@ -95,9 +98,9 @@ const changesSettings = "changes the system's settings"
 // installFlags are install's flags: the profile's files, the remote network's values, and how
 // install runs.
 type installFlags struct {
-	named  profileFlags
-	given  flags
-	dryRun bool
+	named            profileFlags
+	given            flags
+	dryRun, allSteps bool
 }
 
 // newInstall is ikeward install.
@@ -105,7 +108,8 @@ func newInstall(sys system) *cobra.Command {
 	var f installFlags
 	command := &cobra.Command{
 		Use: "install --p12 FILE --sswan FILE [--mobileconfig FILE] --dns ADDR\n" +
-			"      --domain NAME... [--probe NAME] [--floor CIDR]... [--dry-run]",
+			"      --domain NAME... [--probe NAME] [--floor CIDR]... [--dry-run]\n" +
+			"      [--all-steps]",
 		Short:                 "Install the VPN from the client profile",
 		Long:                  installLong,
 		Args:                  noArgs,
@@ -128,6 +132,7 @@ func newInstall(sys system) *cobra.Command {
 	command.Flags().StringArrayVar(&f.given.floors, "floor", nil,
 		"a `CIDR` kept off the uplink from boot on, once for each")
 	command.Flags().BoolVar(&f.dryRun, "dry-run", false, "print the changes, and change nothing")
+	command.Flags().BoolVar(&f.allSteps, "all-steps", false, "take every step, due or not")
 	return command
 }
 
@@ -158,7 +163,9 @@ func (s system) install(command *cobra.Command, f installFlags) (bool, error) {
 	if err := s.clearOfServer(command, p.Server, settings.Floors); err != nil {
 		return false, err
 	}
-	return s.installer(command, f.dryRun).Install(command.Context(), p, settings)
+	in := s.installer(command, f.dryRun)
+	in.AllSteps = f.allSteps
+	return in.Install(command.Context(), p, settings)
 }
 
 // installer is install's and uninstall's view of sys, saying what they do on command's output.
