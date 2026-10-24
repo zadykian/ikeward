@@ -150,21 +150,18 @@ func (s System) Install(p *profile.Profile, settings files.Settings) error {
 	if err != nil {
 		return err
 	}
-	if len(restart.units) > 0 {
-		out.printf("An earlier install stopped before it ended: %s lists %s to restart\n",
-			Pending, strings.Join(restart.units, " and "))
-	}
 	u, err := s.update(append(generated, credentials...))
 	if err != nil {
 		return err
 	}
+	plan := s.plan(u.changed(), restart.units)
 	if err := s.pend(restart, u.changed()); err != nil {
 		return err
 	}
 	if err := s.write(out, u); err != nil {
 		return err
 	}
-	if err := s.take(out, restart.units); err != nil {
+	if err := s.take(out, plan); err != nil {
 		return err
 	}
 	if err := s.restarted(restart); err != nil {
@@ -206,13 +203,22 @@ func (s System) installPackages(out *printer, missing []string) error {
 
 // run runs the command name with args, or in a dry run says it would.
 func (s System) run(out *printer, name string, args ...string) error {
-	line := strings.Join(append([]string{name}, args...), " ")
+	return s.runFor(out, append([]string{name}, args...), "")
+}
+
+// runFor runs command, or in a dry run says it would, and why, where why says.
+func (s System) runFor(out *printer, command []string, why string) error {
+	line := strings.Join(command, " ")
+	because := ""
+	if why != "" {
+		because = ", as " + why
+	}
 	if s.DryRun {
-		out.printf("Would run %s\n", line)
+		out.printf("Would run %s%s\n", line, because)
 		return nil
 	}
-	out.printf("Running %s\n", line)
-	if _, err := s.Runner.Run(name, args...); err != nil {
+	out.printf("Running %s%s\n", line, because)
+	if _, err := s.Runner.Run(command[0], command[1:]...); err != nil {
 		return fmt.Errorf("%s: %w", line, err)
 	}
 	return nil

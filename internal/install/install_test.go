@@ -14,8 +14,9 @@ const (
 )
 
 // On a system without the VPN, install installs the missing packages, writes every file and
-// the record, then restarts networkd and strongSwan, whose settings are new. Pending lists them
-// from before their settings are written until install ends.
+// the record, then takes every step, as each reads a file that is new. networkd and strongSwan
+// restart, whose settings are new. Pending lists them from before their settings are written
+// until install ends.
 func TestInstall(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner("strongswan", "strongswan-swanctl")
@@ -56,18 +57,16 @@ func TestInstall(t *testing.T) {
 		"swanctl --load-all --noprompt",
 		"systemctl start ikeward-watchdog.timer",
 	})
-	var wantOut []string
-	for _, line := range r.ran() {
-		if strings.HasPrefix(line, "apt-get") {
-			wantOut = append(wantOut, "Running "+line)
-		}
-	}
+	wantOut := []string{"Running " + r.ran()[0]}
 	for _, path := range paths {
 		wantOut = append(wantOut, "Created "+path)
 	}
 	wantOut = append(wantOut, "Created "+Record)
-	for _, line := range r.ran()[1:] {
-		wantOut = append(wantOut, "Running "+line)
+	for i, line := range r.ran()[1:] {
+		wantOut = append(wantOut, "Running "+line+", as "+[]string{
+			"/etc/systemd/system/ikeward-watchdog.service", "/etc/systemd/networkd.conf.d/" +
+				"10-keep-vpn-routing.conf", timer, "/etc/systemd/system/ikeward-routing.service",
+			"/etc/strongswan.d/zz-ikeward.conf", connection, timer}[i]+" changes")
 	}
 	checkLines(t, "the output", outputLines(t, out.String()), wantOut)
 	if !strings.Contains(out.String(), "  "+p.Summary()[0]+"\n") {
@@ -105,8 +104,8 @@ func TestInstallAgain(t *testing.T) {
 	checkLines(t, "the output", outputLines(t, out.String()), wantOut)
 }
 
-// install writes only the files that differ, in content or in mode, and restarts no daemon whose
-// settings stay.
+// install writes only the files that differ, in content or in mode, and names the file that
+// makes each step due. It restarts no daemon whose settings stay.
 func TestInstallChanges(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
@@ -127,50 +126,18 @@ func TestInstallChanges(t *testing.T) {
 	if got := f.files[key].mode; got != 0o600 {
 		t.Errorf("the key's mode is %04o, want 0600", got)
 	}
-	got := outputLines(t, out.String())
-	checkLines(t, "the output", got[:4], []string{"Updated " + connection, "Created " + timer,
-		"Updated " + key, "Left 9 of the 12 files as they were"})
-	for _, line := range r.ran() {
-		if restartsDaemon(line) {
-			t.Errorf("ran %s", line)
-		}
-	}
-}
-
-// A change to networkd's or strongSwan's own settings restarts that daemon alone.
-func TestTakeUp(t *testing.T) {
-	for _, test := range []struct {
-		changed  []string
-		networkd string
-		swan     string
-	}{
-		{nil, "networkctl reload", "systemctl start strongswan.service"},
-		{[]string{"/etc/systemd/network/25-ikeward0.network", "/etc/swanctl/conf.d/ikeward.conf",
-			"/etc/systemd/system/ikeward-watchdog.service"},
-			"networkctl reload", "systemctl start strongswan.service"},
-		{[]string{"/etc/systemd/networkd.conf.d/10-keep-vpn-routing.conf"},
-			"systemctl restart systemd-networkd.service", "systemctl start strongswan.service"},
-		{[]string{"/etc/strongswan.d/zz-ikeward.conf"},
-			"networkctl reload", "systemctl restart strongswan.service"},
-	} {
-		restart := &restarts{}
-		if err := (System{DryRun: true}).pend(restart, test.changed); err != nil {
-			t.Fatal(err)
-		}
-		var got []string
-		for _, st := range steps {
-			got = append(got, strings.Join(st.commandFor(restart.units), " "))
-		}
-		checkLines(t, strings.Join(test.changed, ", "), got, []string{
-			"systemctl daemon-reload",
-			test.networkd,
-			"systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
-			"systemctl restart ikeward-routing.service",
-			test.swan,
-			"swanctl --load-all --noprompt",
-			"systemctl start ikeward-watchdog.timer",
-		})
-	}
+	checkLines(t, "the output", outputLines(t, out.String()), []string{
+		"Updated " + connection, "Created " + timer, "Updated " + key,
+		"Left 9 of the 12 files as they were",
+		"Running systemctl daemon-reload, as " + timer + " changes",
+		"Running networkctl reload",
+		"Running systemctl enable ikeward-routing.service strongswan.service " +
+			"ikeward-watchdog.timer, as " + timer + " changes",
+		"Running systemctl restart ikeward-routing.service",
+		"Running systemctl start strongswan.service",
+		"Running swanctl --load-all --noprompt, as " + connection + " changes",
+		"Running systemctl start ikeward-watchdog.timer, as " + timer + " changes",
+	})
 }
 
 // A profile of another name replaces the certificate and key of the one before, and install

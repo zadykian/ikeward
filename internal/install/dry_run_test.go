@@ -7,7 +7,7 @@ import (
 )
 
 // A dry run changes nothing, runs nothing but dpkg-query, and prints the files as diffs, but
-// for the key.
+// for the key. It says why each step is due.
 func TestInstallDryRun(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages[1:]...)
@@ -29,8 +29,9 @@ func TestInstallDryRun(t *testing.T) {
 		"Would create /etc/swanctl/private/client-key.pem, mode 0600, which only root may read: " +
 			"not shown\n",
 		"Would create " + Record + "\n",
-		"Would run systemctl restart strongswan.service\n",
-		"Would run systemctl start ikeward-watchdog.timer\n",
+		"Would run systemctl restart strongswan.service, as /etc/strongswan.d/zz-ikeward.conf " +
+			"changes\n",
+		"Would run systemctl start ikeward-watchdog.timer, as " + timer + " changes\n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the output lacks %q:\n%s", want, got)
@@ -41,7 +42,8 @@ func TestInstallDryRun(t *testing.T) {
 	}
 }
 
-// On a system with the VPN installed, a dry run shows what differs alone.
+// On a system with the VPN installed, a dry run shows what differs alone, and the step that reads
+// it.
 func TestInstallDryRunChanges(t *testing.T) {
 	p := newProfile(t, "client")
 	f := newFakeFiles()
@@ -83,12 +85,13 @@ func TestInstallDryRunChanges(t *testing.T) {
 		"Would run systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
 		"Would run systemctl restart ikeward-routing.service",
 		"Would run systemctl start strongswan.service",
-		"Would run swanctl --load-all --noprompt",
+		"Would run swanctl --load-all --noprompt, as " + connection + " changes",
 		"Would run systemctl start ikeward-watchdog.timer",
 	})
 }
 
 // A dry run says which files of an earlier profile it would remove, and a change of mode alone.
+// The record would change, and the steps that read those files are due.
 func TestInstallDryRunStale(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
@@ -108,18 +111,19 @@ func TestInstallDryRunStale(t *testing.T) {
 		"Left 11 of the 12 files as they were",
 		"Would remove /etc/swanctl/x509/old-cert.pem",
 		"Would update " + Record,
-		"Would run systemctl daemon-reload",
+		"Would run systemctl daemon-reload, as " + timer + " changes",
 		"Would run networkctl reload",
-		"Would run systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
+		"Would run systemctl enable ikeward-routing.service strongswan.service " +
+			"ikeward-watchdog.timer, as " + timer + " changes",
 		"Would run systemctl restart ikeward-routing.service",
 		"Would run systemctl start strongswan.service",
-		"Would run swanctl --load-all --noprompt",
-		"Would run systemctl start ikeward-watchdog.timer",
+		"Would run swanctl --load-all --noprompt, as /etc/swanctl/x509/old-cert.pem changes",
+		"Would run systemctl start ikeward-watchdog.timer, as " + timer + " changes",
 	})
 }
 
-// Where Pending lists a daemon, a dry run says it would restart it, though its settings are as
-// they should be, and leaves Pending unchanged.
+// Where Pending lists a daemon, a dry run says it would restart it, as an earlier install owes
+// it, though its settings are as they should be. Pending stays.
 func TestInstallDryRunPending(t *testing.T) {
 	p := newProfile(t, "client")
 	f, r := newFakeFiles(), newFakeRunner(Packages...)
@@ -136,14 +140,12 @@ func TestInstallDryRunPending(t *testing.T) {
 		t.Errorf("Pending is\n%s", got)
 	}
 	checkLines(t, "the output", outputLines(t, out.String()), []string{
-		"An earlier install stopped before it ended: " + Pending + " lists strongswan.service " +
-			"to restart",
 		"Left 12 of the 12 files as they were",
 		"Would run systemctl daemon-reload",
 		"Would run networkctl reload",
 		"Would run systemctl enable ikeward-routing.service strongswan.service ikeward-watchdog.timer",
 		"Would run systemctl restart ikeward-routing.service",
-		"Would run systemctl restart strongswan.service",
+		"Would run systemctl restart strongswan.service, as " + owedWhy,
 		"Would run swanctl --load-all --noprompt",
 		"Would run systemctl start ikeward-watchdog.timer",
 	})

@@ -90,12 +90,6 @@ func installOn(t *testing.T, f *fakeFiles, r *fakeRunner, p *profile.Profile) {
 	f.writes, f.removes, r.commands = nil, nil, nil
 }
 
-// restartsDaemon is whether line, a command install ran, restarts a daemon, networkd or
-// strongSwan. The routing's service restarts on every install, and is no daemon.
-func restartsDaemon(line string) bool {
-	return strings.Contains(line, "restart") && line != "systemctl restart "+routing.Unit
-}
-
 // onHome is install's system on f and r, on home's kernel, with ikeward's NAT table, saying what
 // it does on out.
 func onHome(f *fakeFiles, r *fakeRunner, out io.Writer) System {

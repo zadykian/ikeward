@@ -39,8 +39,8 @@ func TestInstallHalfWay(t *testing.T) {
 }
 
 // Where install stops once it has written networkd's or strongSwan's own settings, a rerun finds
-// them as they should be. It restarts the daemons all the same, as Pending lists them, and
-// Pending goes as it ends. Pending keeps those an earlier install left in it.
+// them as they should be. It restarts the daemons all the same, as Pending owes them, and says
+// so. Pending goes as it ends, and keeps those an earlier install left in it.
 func TestInstallRerun(t *testing.T) {
 	p := newProfile(t, "client")
 	for _, test := range []struct {
@@ -79,8 +79,7 @@ func TestInstallRerun(t *testing.T) {
 				t.Fatal(err)
 			}
 			checkLines(t, "the commands", r.ran(), restartBoth)
-			note := "An earlier install stopped before it ended: " + Pending + " lists " +
-				networkd + " and " + StrongSwan + " to restart\n"
+			note := "Running systemctl restart strongswan.service, as " + owedWhy + "\n"
 			if _, left := f.files[Pending]; left || !strings.Contains(out.String(), note) {
 				t.Errorf("Pending is left %v, or the output lacks %q:\n%s", left, note, out.String())
 			}

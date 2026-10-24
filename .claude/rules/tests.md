@@ -62,8 +62,9 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
   `updown_test.go` and `routing_test.go` cover their commands, and `fake_test.go` the fake system.
   `helpers_test.go` writes the profile's files, gives install's arguments, and reads what it wrote.
 - `internal/install`: `install_test.go`, a run, again and with changes; `half_way_test.go`, a stop
-  half way and the rerun. `dry_run_test.go`, `--dry-run`; `failures_test.go`, failed commands and
-  output; `uninstall_test.go`, `uninstall`; `diff_test.go`, the diffs.
+  half way and the rerun. `steps_test.go`, the steps due by the files they read. `dry_run_test.go`,
+  `--dry-run`; `failures_test.go`, failed commands and output; `uninstall_test.go`, `uninstall`;
+  `diff_test.go`, the diffs.
 - `internal/updown`: `updown_test.go`, `Run` as the tunnel goes up, the ranges it learns or
   refuses, and its errors. `down_test.go`, the tunnel going down, as strongSwan stops or another
   SA grants the range.
