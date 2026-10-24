@@ -155,7 +155,14 @@ func (s System) Install(p *profile.Profile, settings files.Settings) error {
 		out.printf("An earlier install stopped before it ended: %s lists %s to restart\n",
 			Pending, strings.Join(restart.units, " and "))
 	}
-	if err := s.write(out, append(generated, credentials...), restart); err != nil {
+	u, err := s.update(append(generated, credentials...))
+	if err != nil {
+		return err
+	}
+	if err := s.pend(restart, u.changed()); err != nil {
+		return err
+	}
+	if err := s.write(out, u); err != nil {
 		return err
 	}
 	for _, command := range takeUp(restart.units) {

@@ -26,7 +26,7 @@ func TestInstall(t *testing.T) {
 
 	files := want(t, p)
 	paths := pathsOf(files)
-	checkLines(t, "the files written", f.writes, append([]string{Record, Pending}, paths...))
+	checkLines(t, "the files written", f.writes, append([]string{Pending, Record}, paths...))
 	checkLines(t, "the files removed", f.removes, []string{Pending})
 	for _, want := range files {
 		got := f.files[want.Path]
