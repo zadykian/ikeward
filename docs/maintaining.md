@@ -16,16 +16,8 @@ may not push such a change.
 before it lands there, by `/ff` or by hand. It requires signed commits, and every conversation
 resolved, too.
 
-Pull requests may stack, each on the branch below it, as a change over 300 lines does. Once the one
-below lands, retarget the next at `main`, and rebase it where `main` moved. Wait for its checks,
-then `/ff` it. `gh pr edit --base` fails on the Projects (classic) deprecation, so retarget through
-GitHub's API:
-
-```sh
-gh api -X PATCH 'repos/{owner}/{repo}/pulls/N' -f base=main
-gh pr checks N --watch
-gh pr comment N --body /ff
-```
+`/flow:land` lands a stack of pull requests, the bottom first, by the steps of the
+[land](https://github.com/zadykian/skills/blob/main/skills/land/SKILL.md) skill.
 
 ## A fork's pull request
 
@@ -93,6 +85,6 @@ and the notes, before anything is published. GitHub marks it the latest release,
 and does not run again.
 
 ```sh
-git tag vX.Y.Z COMMIT
+git tag -a vX.Y.Z -m vX.Y.Z COMMIT
 git push origin vX.Y.Z
 ```

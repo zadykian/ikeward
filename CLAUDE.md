@@ -228,20 +228,17 @@ Each rule links where its reason lives: a docs page, a comment or a CI job.
 ## How changes land
 
 - Pull requests land on `main` by fast-forward only; never run `gh pr merge`.
-- Rebase onto `main`, wait for the checks (`gh pr checks N --watch`), then comment `/ff`, alone,
-  on the pull request (`.github/workflows/fast-forward.yml`). `/ff` pushes at once, and `main`'s
-  ruleset refuses the push until CI's `check`, `integration` and `lint` pass and every
-  conversation is resolved ([pull requests](docs/maintaining.md#pull-requests)). Read a fork's
-  pull request by `gh pr diff N`, and never check its branch out where Claude Code runs, as
+- `/flow:land` lands them by a comment `/ff` (`.github/workflows/fast-forward.yml`), as the
+  [land](https://github.com/zadykian/skills/blob/main/skills/land/SKILL.md) skill says, and runs
+  denycheck on each pull request before its `/ff`. `/ff` pushes at once, and `main`'s ruleset
+  refuses the push until CI's `check`, `integration` and `lint` pass and every conversation is
+  resolved ([pull requests](docs/maintaining.md#pull-requests)). Read a fork's pull request by
+  `gh pr diff N`, and never check its branch out where Claude Code runs, as
   [maintaining.md](docs/maintaining.md#a-forks-pull-request) says.
 - The maintainer pushes a pull request that changes `.github/workflows` by hand,
   `git push origin SHA:main`, as the workflow's token may not push such a change.
 - A tag `vX.Y.Z` on `main` publishes a release (`release.yml`), which fails for a commit not on
   `main`, or a number with a leading zero; the maintainer pushes it.
-- Pull requests stack, each on the branch below it. Once the one below lands, retarget the next at
-  `main` with `gh api -X PATCH 'repos/{owner}/{repo}/pulls/N' -f base=main`, and rebase it where
-  `main` moved. Wait for its checks, then `/ff` it. `/flow:land` walks a stack, and runs
-  denycheck on each pull request before its `/ff`.
 - `.claude/settings.json` denies `gh pr merge`, the usual forms of a push to `main`, a bare
   `git push` or `git push origin`, a push of `HEAD`, and the usual forms of a tag's push. A rule
   matches the command as written, so it guards only the forms it names: never push from a local
