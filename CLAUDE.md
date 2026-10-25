@@ -250,28 +250,9 @@ Each rule links where its reason lives: a docs page, a comment or a CI job.
 
 ## Commits
 
-The `atomic-commits` skill of `flow` cuts a change into commits, each of one logical change that
-`make check` and `make lint` pass, and a change over 300 lines into stacked pull requests. What
-follows wins where it differs.
-
-Messages follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
-`make commits` (`tools/commitcheck`) checks each commit from `origin/main` to `HEAD` for these
-([the commit messages](docs/checks.md#the-commit-messages)):
-
-- The header is `type(scope): description`, 72 columns at most, with no period at its end. The
-  type is `feat`, `fix`, `build`, `chore`, `ci`, `docs`, `perf`, `refactor`, `revert`, `style` or
-  `test`. The scope is optional, of `a-z`, `0-9`, `_` and `-`; `git log` on `main` shows none so
-  far. A breaking change takes `!` before the colon.
-- A blank line follows the header. A line of the body is 72 columns at most, but for a
-  `Co-authored-by` or `Signed-off-by` trailer and a line that holds a URL.
-
-Review checks the rest:
-
-- The description is short and lower case, a noun phrase or an imperative, as `main`'s history has
-  both. The body is a list of bullets: what was missing, what changed, what was checked.
-- A pull request's title is a header too, its commit's where it holds one. Its body starts
-  `Part of #N.`, or `Closes #N.` on the one that completes the issue. Then come `## What`,
-  `## Stack` in a stack of several, and what was checked.
+Commits and pull requests follow the
+[atomic-commits](https://github.com/zadykian/skills/blob/main/skills/atomic-commits/SKILL.md)
+skill of `flow`. Each commit passes `make check` and `make lint`.
 
 ## Where else to look
 

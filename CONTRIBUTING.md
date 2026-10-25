@@ -14,18 +14,13 @@ documentation ranges and `example.test`. Replace the real ones in a log before y
 
 ## A pull request
 
-- Small commits, each of one logical change, which `make check` and `make lint` pass with no
-  finding, warnings included. Their tests cover what they add. A change of more than 300 lines goes
-  as a stack of pull requests, each on the one below, as the [atomic-commits][atomic] skill cuts
-  it. [The checks](docs/checks.md) says what each gate checks, and how a finding is settled:
-  fixed, never turned off. Without the maintainer's list of employers' terms, `tools/denycheck`
-  passes with a note, and the maintainer checks with the list before landing.
+- Commits and pull requests as the [atomic-commits][atomic] skill cuts and writes them. Each
+  commit passes `make check` and `make lint` with no finding, warnings included, and its tests
+  cover what it adds. [The checks](docs/checks.md) says what each gate checks, and how a finding
+  is settled: fixed, never turned off. Without the maintainer's list of employers' terms,
+  `tools/denycheck` passes with a note, and the maintainer checks with the list before landing.
 - Signed, by a GPG or SSH key that GitHub verifies, as `main` takes signed commits alone. GitHub's
   docs say [how to sign commits][sig].
-- A message in [Conventional Commits 1.0.0][commits], as `make commits` checks it. The header and
-  each line of the body hold 72 columns at most, with a blank line between, and the body is a list
-  of bullets. [The commit messages](docs/checks.md#the-commit-messages) gives the types. The pull
-  request's title is a header too, its commit's where it holds one.
 - Based on `main`'s head. Rebase it where `main` moves, rather than merge `main` into it.
 - A change of behaviour goes together across the code and its comments, the help, the README, its
   page in `docs/` and the tests.
@@ -53,7 +48,6 @@ maintainer, [@zadykian](https://github.com/zadykian).
 ikeward is under the [MIT license](LICENSE). A contribution is under it too.
 
 [sig]: https://docs.github.com/authentication/managing-commit-signature-verification/signing-commits
-[commits]: https://www.conventionalcommits.org/en/v1.0.0/
 [atomic]: https://github.com/zadykian/skills/blob/main/skills/atomic-commits/SKILL.md
 [skills]: https://github.com/zadykian/skills
 [writing]: https://github.com/zadykian/skills/blob/main/skills/writing/SKILL.md
