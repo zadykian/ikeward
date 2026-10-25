@@ -7,8 +7,8 @@ name: fast-forward
 # request that changes .github/workflows is pushed by hand, `git push origin SHA:main`, as the
 # workflow's token may not push it.
 #
-# The job starts only for a comment of `/ff` alone, by the repository's owner, a member or a
-# collaborator; the action then checks that the commenter can push.
+# The job starts only for a comment on a pull request that starts `/ff`, as the action's README
+# sets it. The action checks the comment again, and refuses a commenter who cannot push.
 
 on:
   issue_comment:
@@ -18,10 +18,7 @@ permissions: {}
 
 jobs:
   fast-forward:
-    if: >-
-      github.event.issue.pull_request && github.event.comment.body == '/ff' &&
-      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
-        github.event.comment.author_association)
+    if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/ff')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
