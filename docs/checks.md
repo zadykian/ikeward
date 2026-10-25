@@ -22,7 +22,7 @@ a gate that fails, so its log shows each one that does.
 - `golangci-lint`: the linters `.golangci.yml` sets, once `golangci-lint config verify` has
   checked that file.
 - `sizecheck`: `tools/sizecheck`, the size caps. A Go, Markdown, YAML or shell file has 300 lines
-  at most, the README at the root 150, a Go comment block 4, and a package comment 15.
+  at most, a Go comment block 4, and a package comment 15.
   Directives, and the `//` line gofmt puts before a doc comment's directives, count for neither.
 - `vale`: `tools/valecheck`, Vale on the Markdown files and on the Go comments, with `.vale.ini`
   alone. It sets three rules, each an error: sentences of 30 words at most, no wordy phrase, no

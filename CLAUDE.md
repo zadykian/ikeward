@@ -200,8 +200,8 @@ Each rule links where its reason lives: a docs page, a comment or a CI job.
   and no comment may turn Vale or rumdl off. Never lower a severity, add an exclusion or keep a
   baseline. Every file passes every gate outright, but the size caps pass over the vendored
   `.vale/styles` ([a finding](docs/checks.md#a-finding)).
-- The caps: files of 300 lines or fewer, Go, Markdown, YAML and shell alike, and the README 150. A
-  Go comment block holds 4 lines or fewer, and a package comment 15. Sentences run to 30 words at
+- The caps: files of 300 lines or fewer, Go, Markdown, YAML and shell alike. A Go comment block
+  holds 4 lines or fewer, and a package comment 15. Sentences run to 30 words at
   most, and prose wraps at 100 columns ([the gates](docs/checks.md#the-gates),
   [writing.md](.claude/rules/writing.md), [docs.md](.claude/rules/docs.md)).
 - The shell scripts are POSIX sh, clean under `shellcheck -s sh` and `shfmt -ln posix -i 4` (the

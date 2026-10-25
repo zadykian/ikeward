@@ -109,8 +109,7 @@ golangci-lint:
 	tools/run golangci-lint config verify
 	tools/run golangci-lint run ./...
 
-# The size caps (tools/sizecheck): 300 lines a file and 150 the README, 4 a Go comment block, 15 a
-# package comment.
+# The size caps (tools/sizecheck): 300 lines a file, 4 a Go comment block, 15 a package comment.
 sizecheck:
 	go run ./tools/sizecheck $(FILES)
 

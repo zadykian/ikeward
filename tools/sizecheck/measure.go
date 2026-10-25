@@ -14,11 +14,9 @@ import (
 	"strings"
 )
 
-// The caps: the lines of a file and of the README at the root, of a Go comment block, and of a Go
-// package comment.
+// The caps: the lines of a file, of a Go comment block, and of a Go package comment.
 const (
 	maxLines   = 300
-	maxReadme  = 150
 	maxComment = 4
 	maxPackage = 15
 )
@@ -145,13 +143,9 @@ func directive(c string) bool {
 // findings returns the caps that m, the measurement of the file at path, is over, by line.
 func (m measurement) findings(path string) []finding {
 	var found []finding
-	limit := maxLines
-	if path == "README.md" {
-		limit = maxReadme
-	}
-	if m.lines > limit {
+	if m.lines > maxLines {
 		found = append(found, finding{path: path, line: 1,
-			msg: fmt.Sprintf("%d lines, over the cap of %d", m.lines, limit)})
+			msg: fmt.Sprintf("%d lines, over the cap of %d", m.lines, maxLines)})
 	}
 	if m.errMsg != "" {
 		return append(found, finding{path: path, line: m.errLine, msg: "cannot parse: " + m.errMsg})

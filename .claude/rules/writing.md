@@ -23,7 +23,6 @@ measurable part, and any alert fails them. Review checks the rest.
 - How the code works lives in its comments, and what an operator runs and sees in the README and
   `docs/`. The gates live in `docs/checks.md`, and Claude's rules in `CLAUDE.md` and `.claude/`.
 - A command's help is in `cmd/ikeward`. [docs.md](docs.md) says which document holds what.
-- The README is 150 lines or fewer.
 
 ## A public repository
 

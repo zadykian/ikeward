@@ -7,7 +7,7 @@ paths:
 
 What each document holds. How to write them is in the `writing` skill and [writing.md](writing.md).
 
-- [README.md](../../README.md) is the overview, of 150 lines or fewer, as `make sizecheck` checks.
+- [README.md](../../README.md) is the overview.
   It says what ikeward is for and whom it suits, what it needs, and how to install, set up and run
   it. Then come the routing, the limits, security, and how to uninstall it. Its `More` gives a line
   per topic, linking the topic's page in `docs/`, and links the files below.

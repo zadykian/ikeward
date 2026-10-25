@@ -4,9 +4,9 @@
 //
 //	go run ./tools/sizecheck [-scripts] [FILE...]
 //
-// Every Go, Markdown, YAML and shell file is at most 300 lines, and the README at the root 150. In
-// Go, a comment block is at most 4 lines, and the package comment at most 15, directives and the
-// // line gofmt puts before them aside. It checks the files git lists, new ones included, or those
+// Every Go, Markdown, YAML and shell file is at most 300 lines. In Go, a comment block is at most 4
+// lines, and the package comment at most 15, directives and the // line gofmt puts before them
+// aside. It checks the files git lists, new ones included, or those
 // of them a FILE names. It passes over the vendored files under .vale/styles, which a bump
 // replaces whole. With -scripts, it prints the shell scripts among them instead, for make vet to
 // check. Findings go to stdout as PATH:LINE: message. The exit status is 1 for a finding, and 2

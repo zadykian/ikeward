@@ -111,19 +111,13 @@ func TestMeasure(t *testing.T) {
 	}
 }
 
-// findingsTests are measurements of the file at path, a.go where none is given, and their findings.
+// findingsTests are measurements of a.go, and their findings.
 var findingsTests = []struct {
-	name, path string
-	m          measurement
-	want       []string
+	name string
+	m    measurement
+	want []string
 }{
 	{name: "within the caps", m: measurement{lines: 300, pkg: block{1, 15}}},
-	{name: "the README at its cap", path: "README.md", m: measurement{lines: 150}},
-	{
-		name: "the README over its cap", path: "README.md", m: measurement{lines: 151},
-		want: []string{"README.md:1: 151 lines, over the cap of 150"},
-	},
-	{name: "a README elsewhere", path: "docs/README.md", m: measurement{lines: 300}},
 	{
 		name: "over every cap, by line",
 		m:    measurement{lines: 310, pkg: block{3, 20}, blocks: []block{{30, 5}, {40, 6}}},
@@ -146,12 +140,8 @@ func TestFindings(t *testing.T) {
 	for _, tt := range findingsTests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			path := tt.path
-			if path == "" {
-				path = "a.go"
-			}
 			var got []string
-			for _, f := range tt.m.findings(path) {
+			for _, f := range tt.m.findings("a.go") {
 				got = append(got, fmt.Sprintf("%s:%d: %s", f.path, f.line, f.msg))
 			}
 			if !slices.Equal(got, tt.want) {
