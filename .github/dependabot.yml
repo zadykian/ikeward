@@ -1,7 +1,6 @@
 # Dependabot's pull requests: the Go modules and the actions, a grouped pull request of each a
-# month, of versions out a week at least. Their headers take build: and ci:, so that make commits
-# passes them. Each runs CI with Dependabot's own secrets, DENYLIST among them
-# (docs/maintaining.md).
+# month, of versions out a week at least, headed build: and ci:. Each runs CI with Dependabot's
+# own secrets, DENYLIST among them (docs/maintaining.md).
 version: 2
 updates:
   - package-ecosystem: gomod

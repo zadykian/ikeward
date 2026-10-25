@@ -257,20 +257,20 @@ func TestLintLocal(t *testing.T) {
 // DENYCHECK=true, as CI's workflows run make, none runs, so no other tool gets the list.
 func TestDenycheck(t *testing.T) {
 	t.Parallel()
-	targets := []string{"-n", "check", "commits", "history"}
+	targets := []string{"-n", "check", "denycheck-commits", "history"}
 	r := command(t, root(t), environ(t), "make", targets...)
 	for _, run := range []string{"go run ./tools/denycheck\n",
 		"go run ./tools/denycheck -history origin/main..HEAD\n",
 		"go run ./tools/denycheck -history --all\n"} {
 		if r.status != 0 || !strings.Contains(r.stdout, run) {
-			t.Errorf("make -n check commits history = %d, stdout\n%s\nwant %q in it", r.status,
-				r.stdout, run)
+			t.Errorf("make -n check denycheck-commits history = %d, stdout\n%s\nwant %q in it",
+				r.status, r.stdout, run)
 		}
 	}
 	r = command(t, root(t), environ(t), "make", append(targets, "DENYCHECK=true")...)
 	if r.status != 0 || strings.Contains(r.stdout, "tools/denycheck") ||
 		!strings.Contains(r.stdout, "true -history --all\n") {
-		t.Errorf("make -n check commits history DENYCHECK=true = %d, stdout\n%s\nwant no "+
-			"denycheck", r.status, r.stdout)
+		t.Errorf("make -n check denycheck-commits history DENYCHECK=true = %d, stdout\n%s\n"+
+			"want no denycheck", r.status, r.stdout)
 	}
 }

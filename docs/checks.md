@@ -46,9 +46,8 @@ a gate that fails, so its log shows each one that does.
   ([a client profile](#a-client-profile)).
 - `denycheck`: an employer's terms in the files git lists and in their paths, by
   `tools/denycheck` ([an employer's terms](#an-employers-terms)). `make check` runs it too.
-- `commits`: `tools/commitcheck`, the messages of the commits from `origin/main` to `HEAD`. Then
-  `tools/denycheck -history` reads what those commits add: their messages, authors and
-  committers, paths and files.
+- `denycheck-commits`: `tools/denycheck -history` on what the commits from `origin/main` to
+  `HEAD` add: their messages, authors and committers, paths and files.
 
 `sizecheck`, `vale`, `lychee` and `rumdl` take `FILES`, so that they can check a few files alone.
 make stops on a `FILES` entry that is not a file. With no `FILES`, each checks every file git lists,
@@ -148,14 +147,14 @@ A path prints each term it holds as `[term N]`:
   unseen. The tree's check finds it in the source, and #47's sweep with `strings` stays.
 - `-stdin NAME`: the input, as `NAME:LINE`.
 
-`make check` and `make lint` run it on the tree, `make lint-file` on a file, and `make commits` on
-what the commits from `origin/main` add. Those targets run it as `DENYCHECK` says. CI's workflows
-set `DENYCHECK=true`, a command that does nothing, and run denycheck in steps of their own. So the
-secret `DENYLIST` reaches denycheck alone: no test, no tool and no module that a Dependabot pull
-request bumps sees it. CI's `pr-text` job runs it on a pull request's title, body and
-branch as they change. `release.yml` runs it on each file of the release and on its notes, before
-it publishes them. `/flow:land` runs it on a pull request's commits, title, body and branch
-before `/ff`, and `make history` on every ref's history.
+`make check` and `make lint` run it on the tree, `make lint-file` on a file, and
+`make denycheck-commits` on what the commits from `origin/main` add. Those targets run it as
+`DENYCHECK` says. CI's workflows set `DENYCHECK=true`, a command that does nothing, and run
+denycheck in steps of their own. So the secret `DENYLIST` reaches denycheck alone: no test, no tool
+and no module that a Dependabot pull request bumps sees it. CI's `pr-text` job runs it on a pull
+request's title, body and branch as they change. `release.yml` runs it on each file of the release
+and on its notes, before it publishes them. `/flow:land` runs it on a pull request's commits, title,
+body and branch before `/ff`, and `make history` on every ref's history.
 
 With no list, denycheck prints a note and passes, so a contributor without the list can work. In
 GitHub Actions it fails instead, so that a missing `DENYLIST` passes nothing. A fork's own runs
@@ -244,19 +243,6 @@ extensions, in any case, which `.gitignore` ignores:
 
 It fails on a `.gitleaksignore` at the root too, whose findings gitleaks would pass over. A file
 that holds a bare password still passes, as no rule can tell one.
-
-## The commit messages
-
-`tools/commitcheck` reads each commit that `HEAD` holds and `origin/main` does not. A header is
-`type(scope)!: description`, of 72 columns at most, with no period at its end. The scope and the
-`!` are optional. The type is one of `feat`, `fix`, `build`, `chore`, `ci`, `docs`, `perf`,
-`refactor`, `revert`, `style` and `test`, and a scope is of `a-z`, `0-9`, `_` and `-`.
-
-A blank line follows the header. Each line of the body is 72 columns at most, but for a line that
-holds a URL, and for a `Co-authored-by` or `Signed-off-by` trailer, in any case. Merge commits are
-passed over: pull requests land on `main` by fast-forward, and CI checks a pull request on
-GitHub's merge. CI's checkout fetches the whole history, which gitleaks reads too. Dependabot's
-headers take `build:` and `ci:`, as `.github/dependabot.yml` sets them.
 
 ## The runner labels
 

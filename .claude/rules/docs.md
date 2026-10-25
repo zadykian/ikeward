@@ -26,7 +26,7 @@ What each document holds. How to write them is in the `writing` skill and [writi
     integration test, and the test that shows what ikeward reads of a profile.
   - [checks.md](../../docs/checks.md): each gate of `make lint`, Claude Code's hooks, how a
     finding is settled, an employer's terms and the history job. Then Vale on Go comments, the
-    licenses, govulncheck, what gitleaks cannot read, the commit messages, and each file's gates.
+    licenses, govulncheck, what gitleaks cannot read, and each file's gates.
   - [maintaining.md](../../docs/maintaining.md): landing pull requests on `main`, reviewing a
     fork's pull request, the list of terms, Dependabot, and publishing a release.
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) says what an issue and a pull request need, and links

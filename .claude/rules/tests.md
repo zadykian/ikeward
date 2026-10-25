@@ -90,7 +90,7 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
   refuses; `version_test.go`, `IKEWARD_VERSION`; `readme_test.go`, the README's install commands.
   `curl_test.go` holds the fake curl and its test, `installer_test.go` the other fakes, and
   `helpers_test.go` the checks the files share.
-- `tests/tools`: a file per script of `tools/` but `run`, as `commitcheck_test.go`, and
+- `tests/tools`: a file per script of `tools/` but `run`, as `valecheck_test.go`, and
   `TestGitleaks`, which runs `make gitleaks`, in `profilecheck_test.go`. `makefile_test.go` covers
   the Makefile's recipes and `tools/run -path`, and `lint_file_test.go` `make lint-file`.
 - `tests/integration`: `integration_test.go`, the steps' order and the install, tunnel, resolver,

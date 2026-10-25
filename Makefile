@@ -41,8 +41,8 @@ GITLEAKS = tools/run gitleaks git --config=.gitleaks.toml --ignore-gitleaks-allo
 	--redact --verbose
 
 .PHONY: check lint lint-local lint-file lint-tree vet golangci-lint sizecheck vale lychee rumdl \
-	govulncheck licenses actionlint zizmor gitleaks denycheck commits history test integration \
-	build notices
+	govulncheck licenses actionlint zizmor gitleaks denycheck denycheck-commits history test \
+	integration build notices
 
 # The checks and the tests that CI's check job runs; each fails on any finding.
 check: vet golangci-lint denycheck test
@@ -50,14 +50,14 @@ check: vet golangci-lint denycheck test
 # Every gate, as CI's lint job runs them, each failing on any finding, warnings included.
 # tools/run downloads the tools pinned there into .cache/tools.
 lint: vet golangci-lint sizecheck vale lychee rumdl govulncheck licenses actionlint zizmor \
-	gitleaks denycheck commits
+	gitleaks denycheck denycheck-commits
 
 # The gates of lint whose findings change with the tree alone, not with the date or the network:
 # all but govulncheck, with zizmor offline. The lint plugin's Stop hook runs it, through lint-tree
 # (docs/checks.md).
 lint-local: ZIZMOR_FLAGS = --offline
 lint-local: vet golangci-lint sizecheck vale lychee rumdl licenses actionlint zizmor gitleaks \
-	denycheck commits
+	denycheck denycheck-commits
 
 # The gates of each file of FILES, as the lint plugin runs them after Claude edits a file: those
 # of its type, as lint-local runs them on every file, zizmor offline. Then, whatever its type, a
@@ -88,7 +88,7 @@ lint-file:
 	done; exit $$status
 
 # The gates of lint-local, as the lint plugin runs them, with -k, as Claude ends its turn.
-# commits reads origin/main itself, so BASE goes unread.
+# denycheck-commits reads origin/main itself, so BASE goes unread.
 lint-tree: lint-local
 
 # The shell scripts are those that sizecheck finds by their name or their shebang among the files
@@ -175,10 +175,9 @@ gitleaks:
 denycheck:
 	$(DENYCHECK)
 
-# The messages of the commits from origin/main to HEAD; then the employer's terms in what they
-# add: their messages, authors and committers, paths and files.
-commits:
-	tools/commitcheck
+# The employer's terms in what the commits from origin/main to HEAD add: their messages, authors
+# and committers, paths and files.
+denycheck-commits:
 	$(DENYCHECK) -history origin/main..HEAD
 
 # gitleaks, tools/profilecheck and tools/denycheck over every commit of every ref, as CI's weekly

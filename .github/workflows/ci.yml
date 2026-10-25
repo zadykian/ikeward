@@ -44,7 +44,7 @@ jobs:
 
   # make lint: every gate, each failing on any finding, with the tools tools/run pins. -k runs every
   # gate past a failed one, so the log shows each that fails. gitleaks scans each commit of HEAD's
-  # history, and make commits those after origin/main, so the checkout takes the whole history.
+  # history, and denycheck those after origin/main, so the checkout takes the whole history.
   # denycheck's gates run in a step of their own, which alone gets the secret DENYLIST.
   lint:
     runs-on: ubuntu-latest
@@ -63,7 +63,7 @@ jobs:
         env:
           # zizmor's online audits, which look the actions up on GitHub, need a token.
           GH_TOKEN: ${{ github.token }}
-      # make denycheck's and make commits' runs of denycheck, each past the other's failure.
+      # make denycheck's and make denycheck-commits' runs, each past the other's failure.
       - name: denycheck
         if: ${{ !cancelled() }}
         env:

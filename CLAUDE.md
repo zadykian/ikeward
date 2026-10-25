@@ -118,11 +118,11 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
   the issue forms, each with a required checkbox: no profile, no secret, no employer's names.
 - `tools/run`: fetches the pinned tools of `make check`, `make lint` and `make test` into
   `.cache/tools`.
-- `tools/sizecheck`, `tools/valecheck` with `tools/valemirror`, `tools/profilecheck`,
-  `tools/denycheck` and `tools/commitcheck`: the size caps, Vale on the Markdown and the Go
-  comments, the files gitleaks cannot read, an employer's terms, and the commit messages, as
-  `docs/checks.md` says. `tests/tools` runs the scripts in scratch repositories. `.vale.ini`,
-  `.vale/styles`, `.rumdl.toml`, `.gitleaks.toml` and `.github/actionlint.yaml` configure gates.
+- `tools/sizecheck`, `tools/valecheck` with `tools/valemirror`, `tools/profilecheck` and
+  `tools/denycheck`: the size caps, Vale on the Markdown and the Go comments, the files gitleaks
+  cannot read, and an employer's terms, as `docs/checks.md` says. `tests/tools` runs the scripts
+  in scratch repositories. `.vale.ini`, `.vale/styles`, `.rumdl.toml`, `.gitleaks.toml` and
+  `.github/actionlint.yaml` configure gates.
   `tools/notices.tmpl` is the form of the third-party notices that `make notices` writes.
 - `.golangci.yml`: the linters, strict. `.github/workflows/ci.yml` runs `make check` with
   `make build` and `make notices`, `make lint`, and `make integration` on `ubuntu-26.04`.
