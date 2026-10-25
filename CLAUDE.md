@@ -132,7 +132,7 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
   `rules.yml` runs zadykian/actions' checks of a pull request's commits, description and terms,
   which warn and never block. `.github/dependabot.yml` asks for the modules' and the actions'
   updates each month.
-- `.claude/`: Claude's rules and agent, as [Where else to look](#where-else-to-look) lists them.
+- `.claude/`: Claude's rules, as [Where else to look](#where-else-to-look) lists them.
   `settings.json` holds the permissions, and enables `flow`, `docs` and `lint`, the bundles of the
   marketplace [zadykian/skills](https://github.com/zadykian/skills). `lint-gates` adds to the lint
   plugin's gate code.
@@ -260,8 +260,6 @@ skill of `flow`. Each commit passes `make check` and `make lint`.
   holds what ikeward adds to the `writing` skill's policy, and [docs.md](.claude/rules/docs.md)
   what each document holds. [tests.md](.claude/rules/tests.md) holds the tests' invariants and
   files.
-- `.claude/agents/doc-editor.md`: rewrites prose to the writing policy and Vale's rules, keeping
-  every fact and link.
 - The marketplace's skills, which ikeward uses as they are: `/flow:issue` plans and files an issue.
   `/flow:land`, run by hand only, lands a stack by `/ff`. `/docs:trim` trims comments and docs to
   the policy. `/lint:split-file` splits a file over its cap.
