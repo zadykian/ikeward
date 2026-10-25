@@ -7,8 +7,8 @@ paths:
 # Writing
 
 What ikeward adds to the `writing` skill, which holds the shared policy for comments and docs.
-This file wins where they differ. `make sizecheck`, `make vale` and `make rumdl` check the
-measurable part, and any alert fails them. Review checks the rest.
+`make sizecheck`, `make vale` and `make rumdl` check the measurable part, and any alert fails
+them. Review checks the rest.
 
 ## Comments
 

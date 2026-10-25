@@ -25,8 +25,7 @@ documentation ranges and `example.test`. Replace the real ones in a log before y
 - A change of behaviour goes together across the code and its comments, the help, the README, its
   page in `docs/` and the tests.
 - Prose follows [the writing policy][writing], with ikeward's part in
-  [writing.md](.claude/rules/writing.md): sentences of 30 words at most, lines of 100 columns, and
-  files of 300 lines.
+  [writing.md](.claude/rules/writing.md).
 
 With Claude Code, `CLAUDE.md`, `.claude/` and the skills of [zadykian/skills][skills] give Claude
 the same rules. That marketplace's lint plugin runs the gates as Claude works.
