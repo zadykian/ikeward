@@ -1,6 +1,0 @@
-# An issue takes one of the forms beside this file. A vulnerability goes to a private report.
-blank_issues_enabled: false
-contact_links:
-  - name: A vulnerability
-    url: https://github.com/zadykian/ikeward/security/advisories/new
-    about: Report it privately, as SECURITY.md says, never in an issue.

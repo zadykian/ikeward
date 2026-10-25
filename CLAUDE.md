@@ -114,8 +114,7 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
   watchdog, the routing and the NAT rule, the profile, building and testing, the gates, and
   maintaining: pull requests, a fork's, and releases.
 - `README.md`, `CONTRIBUTING.md`, `SECURITY.md` and `LICENSE`, MIT's: the overview, what a
-  contribution needs, how to report a vulnerability, and the terms. `.github/ISSUE_TEMPLATE` holds
-  the issue forms, each with a required checkbox: no profile, no secret, no employer's names.
+  contribution needs, how to report a vulnerability, and the terms.
 - `tools/run`: fetches the pinned tools of `make check`, `make lint` and `make test` into
   `.cache/tools`.
 - `tools/sizecheck`, `tools/valecheck` with `tools/valemirror`, `tools/profilecheck` and

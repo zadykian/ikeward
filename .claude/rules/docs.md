@@ -31,8 +31,7 @@ What each document holds. How to write them is in the `writing` skill and [writi
     fork's pull request, the list of terms, Dependabot, and publishing a release.
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) says what an issue and a pull request need, and links
   the code of conduct. [SECURITY.md](../../SECURITY.md) says how to report a vulnerability, and
-  [LICENSE](../../LICENSE) is MIT's. The issue forms in `.github/ISSUE_TEMPLATE` ask for no
-  profile, no secret and no employer's names or addresses.
+  [LICENSE](../../LICENSE) is MIT's.
 - A new topic gets a page of its own and a line in the README's `More`. A page that would pass 300
   lines splits by topic.
 - [CLAUDE.md](../../CLAUDE.md) is for Claude. It says what the repository is, its layout, the

@@ -5,8 +5,8 @@ Thanks for helping ikeward. The [README](README.md) says what it does, and
 
 ## Issues
 
-Open an issue with its form: a bug, or a change. Talk a change of behaviour over in an issue before
-its pull request. Report a vulnerability privately instead, as [SECURITY.md](SECURITY.md) says.
+Talk a change of behaviour over in an issue before its pull request. Report a vulnerability
+privately instead, as [SECURITY.md](SECURITY.md) says.
 
 Put no profile, key, certificate or password in an issue, a pull request or a commit. Put no
 employer's names, hosts, addresses or domains there either. Make values up, as the tests do, from
