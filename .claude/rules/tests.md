@@ -50,12 +50,13 @@ says what it stands for, and [development.md](../../docs/development.md) says ho
 ## Where a test goes
 
 - A test goes in the file named for what it covers. A file that would pass 300 lines splits by
-  topic. A helper of one file's tests stays in that file. The fakes and helpers that several files
-  share go in `fake_test.go` or `helpers_test.go`, with no test in them. Some packages name that
-  file for what it builds: `fixture_test.go` in `internal/profile`, `installer_test.go` in
-  `tests/installer`, and `stack_test.go` in `tests/integration`. `tests/tools` keeps them in
-  `tools_test.go`. `tools/sizecheck` and `tools/denycheck` keep them in `main_test.go`, beside
-  their `TestMain` and `TestRunErrors`, a test of `run`.
+  topic. Code that one file's tests alone use stays in that file. The fakes that several files
+  share go in `fake_test.go`, and the other code they share in a file of its own, with no test in
+  either. Some packages name that file for what it builds: `fixture_test.go` in
+  `internal/profile`, `installer_test.go` in `tests/installer`, and `stack_test.go` in
+  `tests/integration`. `tests/tools` keeps that code in `tools_test.go`. `tools/sizecheck` and
+  `tools/denycheck` keep it in `main_test.go`, beside their `TestMain` and `TestRunErrors`, a test
+  of `run`.
 - `cmd/ikeward`: `main_test.go`, the version, the help, mistakes and exit statuses.
   `install_test.go`, install, its dry run, its errors, and its refusal to run as another program.
   `steps_test.go`, install again: the steps due, `--all-steps`, and `--exit-code`'s statuses.
