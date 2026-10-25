@@ -129,7 +129,9 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
   `.github/workflows/release.yml`, on a tag `vX.Y.Z`, runs `make check` and publishes what
   `make build` and `make notices` make, once denycheck reads it. `pr-text.yml` runs denycheck on
   a pull request's title, body and branch, and `history.yml` runs `make history` each week.
-  `.github/dependabot.yml` asks for the modules' and the actions' updates each month.
+  `rules.yml` runs zadykian/actions' checks of a pull request's commits, description and terms,
+  which warn and never block. `.github/dependabot.yml` asks for the modules' and the actions'
+  updates each month.
 - `.claude/`: Claude's rules and agent, as [Where else to look](#where-else-to-look) lists them.
   `settings.json` holds the permissions, and enables `flow`, `docs` and `lint`, the bundles of the
   marketplace [zadykian/skills](https://github.com/zadykian/skills). `lint-gates` adds to the lint

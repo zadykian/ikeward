@@ -1,0 +1,24 @@
+name: rules
+
+# A pull request's commits, size, title and description, and the vague names and filler it adds,
+# against the rules of zadykian/skills: the three checks of zadykian/actions, with their default
+# inputs. Each warns, in a comment on the pull request, and never blocks, so no ruleset requires
+# the job. They read the pull request through GitHub's API and check out nothing.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: zadykian/actions/atomic-commits@d6c413fda643fd21fa38480c7c0a9202e6cb1483 # v1.0.0
+      - uses: zadykian/actions/pr-description@d6c413fda643fd21fa38480c7c0a9202e6cb1483 # v1.0.0
+      - uses: zadykian/actions/banned-terms@d6c413fda643fd21fa38480c7c0a9202e6cb1483 # v1.0.0
