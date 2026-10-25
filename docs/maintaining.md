@@ -6,11 +6,11 @@ How the maintainer lands pull requests, reviews a fork's, and publishes a releas
 
 ## Pull requests
 
-Pull requests land on `main` by fast-forward only, as the commits CI checked. GitHub's merge
-methods are all refused. A comment of `/ff` alone, from the repository's owner, a member or a
-collaborator who can push here, pushes the pull request's head to `main`
-(`.github/workflows/fast-forward.yml`). A pull request that changes `.github/workflows` is pushed
-by hand, `git push origin SHA:main`, as the workflow's token may not push such a change.
+Pull requests land on `main` by fast-forward only, as the commits CI checked. GitHub's merge methods
+are all refused. A comment of `/ff` alone, from the repository's owner, a member or a collaborator
+who can push here, pushes the pull request's head to `main` and closes its linked issues
+(`.github/workflows/fast-forward.yml`). A pull request that changes `.github/workflows` is pushed by
+hand, `git push origin SHA:main`, as the workflow's token may not push such a change.
 
 `main`'s ruleset requires CI's `check`, `integration` and `lint` jobs to have passed on a commit
 before it lands there, by `/ff` or by hand. It requires signed commits, and every conversation
