@@ -12,9 +12,6 @@ func lines(n int) string {
 	return strings.Repeat("x\n", n)
 }
 
-// badGo is a Go file with a comment block of 5 lines on line 3.
-var badGo = "package a\n\n" + strings.Repeat("// x\n", 5) + "var x int\n"
-
 // runSteps is a session of sizecheck in one repository, each step on what those before it left.
 // $DIR in args stands for the repository's directory.
 var runSteps = []struct {
@@ -28,16 +25,15 @@ var runSteps = []struct {
 		name: "files over the caps", status: 1,
 		stdout: "big.md:1: 303 lines, over the cap of 300\n" +
 			"bin/hook:1: 301 lines, over the cap of 300\n" +
-			"new.go:3: comment block of 5 lines, over the cap of 4\n" +
 			"styles/a/long.yml:1: 400 lines, over the cap of 300\n",
 	},
 	{
-		name: "a FILE alone", args: []string{"new.go"}, status: 1,
-		stdout: "new.go:3: comment block of 5 lines, over the cap of 4\n",
+		name: "a FILE alone", args: []string{"bin/hook"}, status: 1,
+		stdout: "bin/hook:1: 301 lines, over the cap of 300\n",
 	},
 	{
-		name: "an absolute FILE", args: []string{"$DIR/new.go"}, status: 1,
-		stdout: "new.go:3: comment block of 5 lines, over the cap of 4\n",
+		name: "an absolute FILE", args: []string{"$DIR/bin/hook"}, status: 1,
+		stdout: "bin/hook:1: 301 lines, over the cap of 300\n",
 	},
 	{
 		name: "FILEs out of the repository, ignored, vendored, of another kind, missing or not files",
@@ -55,7 +51,7 @@ var runSteps = []struct {
 	{
 		name: "files fixed or gone",
 		write: map[string]string{
-			"new.go": "package a\n", "big.md": lines(300), "bin/hook": "", "styles/a/long.yml": "",
+			"big.md": lines(300), "bin/hook": "", "styles/a/long.yml": "",
 		},
 	},
 	{
@@ -76,7 +72,6 @@ func TestRun(t *testing.T) {
 		".probe.sh":               "echo probe\n",
 		"tools/hook.txt":          "#!/bin/sh\necho hook\n",
 		"tools/hook.py":           "#!/usr/bin/env python3\n",
-		"new.go":                  badGo,
 		"notes.txt":               lines(400),
 		".vale/styles/a/LICENSE":  "MIT\n",
 		".vale/styles/a/long.yml": lines(400),

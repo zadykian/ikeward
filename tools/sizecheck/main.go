@@ -1,16 +1,14 @@
-// Command sizecheck keeps ikeward's files and Go comments short.
+// Command sizecheck keeps ikeward's files short.
 //
 // Run from the repository root:
 //
 //	go run ./tools/sizecheck [-scripts] [FILE...]
 //
-// Every Go, Markdown, YAML and shell file is at most 300 lines. In Go, a comment block is at most 4
-// lines, and the package comment at most 15, directives and the // line gofmt puts before them
-// aside. It checks the files git lists, new ones included, or those
-// of them a FILE names. It passes over the vendored files under .vale/styles, which a bump
-// replaces whole. With -scripts, it prints the shell scripts among them instead, for make vet to
-// check. Findings go to stdout as PATH:LINE: message. The exit status is 1 for a finding, and 2
-// for a usage or setup error, which go run reports as 1.
+// Every Go, Markdown, YAML and shell file is at most 300 lines. It checks the files git lists, new
+// ones included, or those of them a FILE names. It passes over the vendored files under
+// .vale/styles, which a bump replaces whole. With -scripts, it prints the shell scripts among them
+// instead, for make vet to check. Findings go to stdout as PATH:LINE: message. The exit status is 1
+// for a finding, and 2 for a usage or setup error, which go run reports as 1.
 package main
 
 import (
@@ -58,8 +56,9 @@ func run(dir string, args []string, stdout, stderr *strings.Builder) int {
 	}
 	var findings []finding
 	for _, f := range files {
-		if checked(f.path, f.src) {
-			findings = append(findings, measure(f.path, f.src).findings(f.path)...)
+		if n := measure(f.src); n > maxLines && checked(f.path, f.src) {
+			findings = append(findings, finding{path: f.path, line: 1,
+				msg: fmt.Sprintf("%d lines, over the cap of %d", n, maxLines)})
 		}
 	}
 	for _, f := range findings {

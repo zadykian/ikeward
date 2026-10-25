@@ -13,8 +13,6 @@ measurable part, and any alert fails them. Review checks the rest.
 ## Comments
 
 - A Go doc comment starts with the name it documents, as `// Check runs the checks, ...` does.
-- A Go comment block is 4 lines or fewer, and a package comment 15 or fewer. A detail that doesn't
-  fit goes in a comment beside the code it explains.
 - A comment names the page that holds a fact, rather than repeat it: `files.LinkULA` names
   `docs/status.md`, and `tools/valemirror` names `docs/checks.md`.
 
