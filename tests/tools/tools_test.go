@@ -1,8 +1,8 @@
 // Package tools checks the scripts in tools/ that make lint runs, and the Makefile's recipes that
-// run them, in scratch repositories of the tests' own. tools/commitcheck reads their commits, and
-// tools/valecheck and tools/profilecheck their files. gitleaks reads a profile that profiletest
-// makes, with .gitleaks.toml. tools/run fetches Vale, gitleaks and shfmt into the repository's
-// .cache/tools, as make lint does. git and Vale read no config of the user's or the system's.
+// run them, in scratch repositories of the tests' own. tools/valecheck and tools/profilecheck read
+// their files. gitleaks reads a profile that profiletest makes, with .gitleaks.toml. tools/run
+// fetches Vale, gitleaks and shfmt into the repository's .cache/tools, as make lint does. git and
+// Vale read no config of the user's or the system's.
 package tools
 
 import (
@@ -75,14 +75,13 @@ func script(t *testing.T, dir string, env []string, name string, args ...string)
 	return command(t, dir, env, "sh", append([]string{path}, args...)...)
 }
 
-// git runs git in dir, and returns its stdout. Where git fails, so does the test.
-func git(t *testing.T, dir string, env []string, args ...string) string {
+// git runs git in dir. Where git fails, so does the test.
+func git(t *testing.T, dir string, env []string, args ...string) {
 	t.Helper()
 	r := command(t, dir, env, "git", args...)
 	if r.status != 0 {
 		t.Fatalf("git %s: exit status %d\n%s", strings.Join(args, " "), r.status, r.stderr)
 	}
-	return r.stdout
 }
 
 // repository makes an empty git repository, on the branch main, in a directory of the test's.
