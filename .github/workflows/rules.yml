@@ -19,6 +19,6 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: zadykian/toolkit/actions/atomic-commits@4c0c6dcb16a67dd4ab7346a8214e93c076dd1402 # v4.0.0
-      - uses: zadykian/toolkit/actions/pr-description@4c0c6dcb16a67dd4ab7346a8214e93c076dd1402 # v4.0.0
-      - uses: zadykian/toolkit/actions/banned-terms@4c0c6dcb16a67dd4ab7346a8214e93c076dd1402 # v4.0.0
+      - uses: zadykian/toolkit/actions/atomic-commits@1c81dbd8565990dc39712e300280230464bedec8 # v4.0.1
+      - uses: zadykian/toolkit/actions/pr-description@1c81dbd8565990dc39712e300280230464bedec8 # v4.0.1
+      - uses: zadykian/toolkit/actions/banned-terms@1c81dbd8565990dc39712e300280230464bedec8 # v4.0.1
