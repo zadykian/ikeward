@@ -27,7 +27,7 @@ documentation ranges and `example.test`. Replace the real ones in a log before y
 - Prose follows [the writing policy][writing], with ikeward's part in
   [writing.md](.claude/rules/writing.md).
 
-With Claude Code, `CLAUDE.md`, `.claude/` and the skills of [zadykian/skills][skills] give Claude
+With Claude Code, `CLAUDE.md`, `.claude/` and the skills of [zadykian/toolkit][toolkit] give Claude
 the same rules. That marketplace's lint plugin runs the gates as Claude works.
 
 ## Landing
@@ -47,7 +47,7 @@ maintainer, [@zadykian](https://github.com/zadykian).
 ikeward is under the [MIT license](LICENSE). A contribution is under it too.
 
 [sig]: https://docs.github.com/authentication/managing-commit-signature-verification/signing-commits
-[atomic]: https://github.com/zadykian/skills/blob/main/skills/atomic-commits/SKILL.md
-[skills]: https://github.com/zadykian/skills
-[writing]: https://github.com/zadykian/skills/blob/main/skills/writing/SKILL.md
+[atomic]: https://github.com/zadykian/toolkit/blob/main/skills/atomic-commits/SKILL.md
+[toolkit]: https://github.com/zadykian/toolkit
+[writing]: https://github.com/zadykian/toolkit/blob/main/skills/writing/SKILL.md
 [covenant]: https://www.contributor-covenant.org/version/2/1/code_of_conduct/

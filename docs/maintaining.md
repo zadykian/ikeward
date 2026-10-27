@@ -17,7 +17,7 @@ before it lands there, by `/ff` or by hand. It requires signed commits, and ever
 resolved, too.
 
 `/flow:land` lands a stack of pull requests, the bottom first, by the steps of the
-[land](https://github.com/zadykian/skills/blob/main/skills/land/SKILL.md) skill.
+[land](https://github.com/zadykian/toolkit/blob/main/skills/land/SKILL.md) skill.
 
 ## A fork's pull request
 

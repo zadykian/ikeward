@@ -202,7 +202,7 @@ Each rule links where its reason lives: a docs page, a comment or a CI job.
 - The caps are the `writing` skill's: files of 300 lines or fewer, Go, Markdown, YAML and shell
   alike. Sentences run to 30 words at most, and prose wraps at 100 columns
   ([the gates](docs/checks.md#the-gates),
-  [writing](https://github.com/zadykian/skills/blob/main/skills/writing/SKILL.md)).
+  [writing](https://github.com/zadykian/toolkit/blob/main/skills/writing/SKILL.md)).
 - The shell scripts are POSIX sh, clean under `shellcheck -s sh` and `shfmt -ln posix -i 4` (the
   [Makefile](Makefile)'s `vet`).
 - `tools/run` pins each tool's version with its four SHA-256 sums, and a bump changes them
@@ -229,7 +229,7 @@ Each rule links where its reason lives: a docs page, a comment or a CI job.
 
 - Pull requests land on `main` by fast-forward only; never run `gh pr merge`.
 - `/flow:land` lands them by a comment `/ff` (`.github/workflows/fast-forward.yml`), as the
-  [land](https://github.com/zadykian/skills/blob/main/skills/land/SKILL.md) skill says, and runs
+  [land](https://github.com/zadykian/toolkit/blob/main/skills/land/SKILL.md) skill says, and runs
   denycheck on each pull request before its `/ff`. `/ff` pushes at once, and `main`'s ruleset
   refuses the push until CI's `check`, `integration` and `lint` pass and every conversation is
   resolved ([pull requests](docs/maintaining.md#pull-requests)). Read a fork's pull request by
@@ -247,7 +247,7 @@ Each rule links where its reason lives: a docs page, a comment or a CI job.
 ## Commits
 
 Commits and pull requests follow the
-[atomic-commits](https://github.com/zadykian/skills/blob/main/skills/atomic-commits/SKILL.md)
+[atomic-commits](https://github.com/zadykian/toolkit/blob/main/skills/atomic-commits/SKILL.md)
 skill of `flow`. Each commit passes `make check` and `make lint`.
 
 ## Where else to look

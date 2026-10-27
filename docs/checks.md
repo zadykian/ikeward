@@ -71,9 +71,9 @@ and zizmor's online audits with GitHub, so CI's `lint` job checks those.
 
 ## Claude Code's hooks
 
-The lint plugin of [zadykian/skills](https://github.com/zadykian/skills), which
+The lint plugin of [zadykian/toolkit](https://github.com/zadykian/toolkit), which
 `.claude/settings.json` enables, runs two targets of the Makefile as Claude works.
-[Its docs](https://github.com/zadykian/skills/blob/main/docs/lint.md) say when, and what it passes
+[Its docs](https://github.com/zadykian/toolkit/blob/main/docs/lint.md) say when, and what it passes
 over.
 
 - After each Edit or Write, `make lint-file FILES=PATH` runs the gates of the file's type on that
