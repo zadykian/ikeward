@@ -238,10 +238,10 @@ Each rule links where its reason lives: a docs page, a comment or a CI job.
   [maintaining.md](docs/maintaining.md#a-forks-pull-request) says.
 - A tag `vX.Y.Z` on `main` publishes a release (`release.yml`), which fails for a commit not on
   `main`, or a number with a leading zero; the maintainer pushes it.
-- `.claude/settings.json` denies `gh pr merge`, the usual forms of a push to `main`, a bare
-  `git push` or `git push origin`, a push of `HEAD`, and the usual forms of a tag's push. A rule
-  matches the command as written, so it guards only the forms it names: never push from a local
-  `main`, and leave the tags to the maintainer.
+- `.claude/settings.json` denies the usual forms of a push to `main`, a bare `git push` or
+  `git push origin`, a push of `HEAD`, and the usual forms of a tag's push. A rule matches the
+  command as written, so it guards only the forms it names: never push from a local `main`, and
+  leave the tags to the maintainer.
 
 ## Commits
 
