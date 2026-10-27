@@ -9,6 +9,12 @@ on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
 
+# Two runs of a pull request race to create each check's comment, so a newer event's run cancels
+# the older one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions: {}
 
 jobs:
