@@ -32,10 +32,10 @@ the same rules. That marketplace's lint plugin runs the gates as Claude works.
 
 ## Landing
 
-CI runs `check`, `integration` and `lint` on the pull request. Once they pass and each conversation
-is resolved, the maintainer lands it by a comment `/ff`. That pushes the very commit CI checked to
-`main`, by fast-forward: GitHub's merge methods are off. [Maintaining](docs/maintaining.md) says
-more.
+CI runs `check`, `integration`, `lint` and `pr-text` on the pull request. Once they pass, its branch
+is up to date with `main` and each conversation is resolved, the maintainer merges it. Its signed
+commits land as they are, under a merge commit that GitHub signs: squash and rebase merges are off.
+[Maintaining](docs/maintaining.md) says more.
 
 ## Conduct
 

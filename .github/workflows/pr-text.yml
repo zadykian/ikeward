@@ -2,7 +2,7 @@ name: pr-text
 
 # A pull request's title, body and branch, which no commit holds, go through tools/denycheck each
 # time they change. A fork's pull request gets no secrets, so denycheck passes it with a note, and
-# the maintainer checks it with the list before /ff (docs/checks.md).
+# the maintainer checks it with the list before the merge (docs/checks.md).
 
 on:
   pull_request:
