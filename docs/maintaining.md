@@ -71,6 +71,10 @@ Each month, Dependabot opens a pull request for the Go modules, headed `build:`,
 actions, headed `ci:`, each of versions out a week at least (`.github/dependabot.yml`). The
 actions' pull request changes `.github/workflows`, so the maintainer pushes it by hand.
 
+It leaves the actions of zadykian/toolkit alone: it would move their hashes, but not the
+marketplace's `ref` in `.claude/settings.json`. The toolkit's `tools/pin` moves both to one
+release, as its [Pin a release](https://github.com/zadykian/toolkit#pin-a-release) says.
+
 ## Releases
 
 A tag `vX.Y.Z` on `main` publishes a release (`.github/workflows/release.yml`). A tag with a

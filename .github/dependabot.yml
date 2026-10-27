@@ -23,5 +23,10 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+    # Dependabot would move the hashes of the toolkit's actions, each named by its path, but not
+    # the marketplace's ref in .claude/settings.json, which it does not read. The toolkit's
+    # tools/pin moves both to one release (docs/maintaining.md).
+    ignore:
+      - dependency-name: "zadykian/toolkit*"
     commit-message:
       prefix: ci
