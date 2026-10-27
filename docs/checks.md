@@ -153,7 +153,7 @@ denycheck in steps of their own. So the secret `DENYLIST` reaches denycheck alon
 and no module that a Dependabot pull request bumps sees it. CI's `pr-text` job runs it on a pull
 request's title, body and branch as they change. `release.yml` runs it on each file of the release
 and on its notes, before it publishes them. `/flow:land` runs it on a pull request's commits, title,
-body and branch before `/ff`, and `make history` on every ref's history.
+body and branch before the merge, and `make history` on every ref's history.
 
 With no list, denycheck prints a note and passes, so a contributor without the list can work. In
 GitHub Actions it fails instead, so that a missing `DENYLIST` passes nothing. A fork's own runs

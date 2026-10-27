@@ -227,16 +227,15 @@ Each rule links where its reason lives: a docs page, a comment or a CI job.
 
 ## How changes land
 
-- Pull requests land on `main` by fast-forward only; never run `gh pr merge`.
-- `/flow:land` lands them by a comment `/ff` (`.github/workflows/fast-forward.yml`), as the
-  [land](https://github.com/zadykian/toolkit/blob/main/skills/land/SKILL.md) skill says, and runs
-  denycheck on each pull request before its `/ff`. `/ff` pushes at once, and `main`'s ruleset
-  refuses the push until CI's `check`, `integration` and `lint` pass and every conversation is
+- Pull requests land on `main` by GitHub's merge commits, as the
+  [land](https://github.com/zadykian/toolkit/blob/main/skills/land/SKILL.md) skill says. A
+  pull request that changes `.github/workflows` lands like any other.
+- `/flow:land` runs denycheck on each pull request before the merge. `main`'s ruleset allows the
+  merge method alone, and requires signed commits and branches up to date with `main`. It refuses
+  the merge until CI's `check`, `integration`, `lint` and `pr-text` pass and every conversation is
   resolved ([pull requests](docs/maintaining.md#pull-requests)). Read a fork's pull request by
   `gh pr diff N`, and never check its branch out where Claude Code runs, as
   [maintaining.md](docs/maintaining.md#a-forks-pull-request) says.
-- The maintainer pushes a pull request that changes `.github/workflows` by hand,
-  `git push origin SHA:main`, as the workflow's token may not push such a change.
 - A tag `vX.Y.Z` on `main` publishes a release (`release.yml`), which fails for a commit not on
   `main`, or a number with a leading zero; the maintainer pushes it.
 - `.claude/settings.json` denies `gh pr merge`, the usual forms of a push to `main`, a bare
@@ -257,8 +256,8 @@ skill of `flow`. Each commit passes `make check` and `make lint`.
   what each document holds. [tests.md](.claude/rules/tests.md) holds the tests' invariants and
   files.
 - The marketplace's skills, which ikeward uses as they are: `/flow:issue` plans and files an issue.
-  `/flow:land`, run by hand only, lands a stack by `/ff`. `/docs:trim` trims comments and docs to
-  the policy. `/lint:split-file` splits a file over its cap.
+  `/flow:land`, run by hand only, lands a stack by GitHub's merge. `/docs:trim` trims comments and
+  docs to the policy. `/lint:split-file` splits a file over its cap.
 - The lint plugin: after each Edit or Write, `make lint-file` runs the gates of the file's type,
   and gitleaks and denycheck on any file. As a turn ends, `make lint-tree`, which is `lint-local`,
   runs where the work tree changed. No gate runs in a tree with a commit that lacks its author's

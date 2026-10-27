@@ -6,18 +6,19 @@ How the maintainer lands pull requests, reviews a fork's, and publishes a releas
 
 ## Pull requests
 
-Pull requests land on `main` by fast-forward only, as the commits CI checked. GitHub's merge methods
-are all refused. A comment `/ff`, from someone who can push here, pushes the pull request's head to
-`main` and closes its linked issues (`.github/workflows/fast-forward.yml`). A pull request that
-changes `.github/workflows` is pushed by hand, `git push origin SHA:main`, as the workflow's token
-may not push such a change.
+Pull requests land on `main` by GitHub's merge commits, the one merge method the repository allows.
+A pull request's own signed commits land as CI checked them, under a merge commit that GitHub
+signs. GitHub closes its linked issues and deletes its branch. A pull request that changes
+`.github/workflows` lands like any other.
 
-`main`'s ruleset requires CI's `check`, `integration` and `lint` jobs to have passed on a commit
-before it lands there, by `/ff` or by hand. It requires signed commits, and every conversation
-resolved, too.
+`main`'s ruleset allows the merge method alone, and requires signed commits and every conversation
+resolved. It requires CI's `check`, `integration`, `lint` and `pr-text` jobs to have passed on a
+pull request, and its branch up to date with `main`. So a merge's tree is the tree CI checked.
 
 `/flow:land` lands a stack of pull requests, the bottom first, by the steps of the
-[land](https://github.com/zadykian/toolkit/blob/main/skills/land/SKILL.md) skill.
+[land](https://github.com/zadykian/toolkit/blob/main/skills/land/SKILL.md) skill. A stack lands by
+`gh stack merge TOP --merge --yes`, from the `github/gh-stack` extension, and a pull request in no
+stack by `gh pr merge N --merge`.
 
 ## A fork's pull request
 
@@ -33,10 +34,10 @@ So read the diff first, `gh pr diff N`, `.claude/` and the Makefile above all. C
 branch out only where Claude Code isn't running, or in a container. CI runs it on GitHub's runners,
 apart from your machine.
 
-GitHub gives a fork's pull request no secrets, so CI checks it with no list of terms. Before `/ff`,
-check its commits, title, body and branch with the list, by your own clone's `tools/denycheck`, as
-`/flow:land` does. Each command runs where the one before it succeeded, so a failed `gh` or
-`git` fails the check rather than pass an empty one:
+GitHub gives a fork's pull request no secrets, so CI checks it with no list of terms. Before the
+merge, check its commits, title, body and branch with the list, by your own clone's
+`tools/denycheck`, as `/flow:land` does. Each command runs where the one before it succeeded, so a
+failed `gh` or `git` fails the check rather than pass an empty one:
 
 ```sh
 head=$(gh pr view N --json headRefOid -q .headRefOid) &&
@@ -68,8 +69,7 @@ that a gate added since finds: take it out of that ref's history.
 ## Dependabot
 
 Each month, Dependabot opens a pull request for the Go modules, headed `build:`, and one for the
-actions, headed `ci:`, each of versions out a week at least (`.github/dependabot.yml`). The
-actions' pull request changes `.github/workflows`, so the maintainer pushes it by hand.
+actions, headed `ci:`, each of versions out a week at least (`.github/dependabot.yml`).
 
 It leaves the actions of zadykian/toolkit alone: it would move their hashes, but not the
 marketplace's `ref` in `.claude/settings.json`. The toolkit's `tools/pin` moves both to one
