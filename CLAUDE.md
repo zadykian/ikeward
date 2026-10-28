@@ -129,7 +129,8 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
   `make build` and `make notices` make, once denycheck reads it. `pr-text.yml` runs denycheck on
   a pull request's title, body and branch, and `history.yml` runs `make history` each week.
   `rules.yml` runs zadykian/toolkit's checks of a pull request's commits, description and terms,
-  which warn and never block. `.github/dependabot.yml` asks for the modules' and the actions'
+  and `issues.yml` its check of an issue against the issue form, as it opens or changes. They
+  warn and never block. `.github/dependabot.yml` asks for the modules' and the actions'
   updates each month, but zadykian/toolkit's, whose `tools/pin` moves them with the marketplace.
   It writes the toolkit's templates too: `.github/pull_request_template.md`, and the issue form
   and `config.yml` in `.github/ISSUE_TEMPLATE`, which turns blank issues off.
