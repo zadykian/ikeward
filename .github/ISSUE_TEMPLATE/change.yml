@@ -1,0 +1,55 @@
+name: Change
+description: Plan a change, with what is missing or wrong today and what to do.
+title: "type(scope): description"
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        The `issue` skill files issues in this form. A body is 2000 characters at most in all.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: >-
+        Two to four sentences: what is missing or wrong today, and what the issue adds. It ends
+        "Line references are to main SHA." Name the versions of any other source cited.
+    validations:
+      required: true
+      min_length: 100
+  - type: textarea
+    id: today
+    attributes:
+      label: Today
+      description: >-
+        Bullets with `file:line` references, the crucial facts only. Group them under a short
+        label where they cover several subjects.
+    validations:
+      required: true
+      min_length: 40
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: >-
+        Bullets saying what changes. A decision leads with its name in bold, and a rejected
+        option says why: "**Not X:** ...".
+    validations:
+      required: true
+      min_length: 40
+  - type: textarea
+    id: pull-requests
+    attributes:
+      label: Pull requests
+      description: >-
+        Only where the change takes several, a checkbox per pull request with its title, in
+        landing order.
+  - type: textarea
+    id: waits
+    attributes:
+      label: Waits
+      description: Only where something outside the issue must happen first.
+  - type: textarea
+    id: open-decisions
+    attributes:
+      label: Open decisions
+      description: Only when something is undecided, each with options and a recommendation.

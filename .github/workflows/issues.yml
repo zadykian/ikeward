@@ -1,0 +1,27 @@
+name: issues
+
+# An issue's title and body against the form of zadykian/toolkit's issue skill, which
+# .github/ISSUE_TEMPLATE/change.yml holds: its issue check, with its default inputs. It warns, in a
+# comment on the issue, and never blocks, so no ruleset requires the job. It reads the issue through
+# GitHub's API and checks out nothing. The issues event runs this file as main has it.
+
+on:
+  issues:
+    types: [opened, edited]
+
+# Two runs of an issue race to create the check's comment, so a newer event's run cancels the
+# older one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  issue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - uses: zadykian/toolkit/actions/issue@84b430f143a2944891329db62847475d531f877a # v6.0.0
