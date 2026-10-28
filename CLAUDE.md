@@ -131,6 +131,8 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
   `rules.yml` runs zadykian/toolkit's checks of a pull request's commits, description and terms,
   which warn and never block. `.github/dependabot.yml` asks for the modules' and the actions'
   updates each month, but zadykian/toolkit's, whose `tools/pin` moves them with the marketplace.
+  It writes the toolkit's templates too: `.github/pull_request_template.md`, and the issue form
+  and `config.yml` in `.github/ISSUE_TEMPLATE`, which turns blank issues off.
 - `.claude/`: Claude's rules, as [Where else to look](#where-else-to-look) lists them.
   `settings.json` holds the permissions, and enables `flow`, `docs` and `lint`, the bundles of the
   marketplace [zadykian/toolkit](https://github.com/zadykian/toolkit), at the release its `ref`

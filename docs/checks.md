@@ -274,6 +274,7 @@ Each file git tracks is a source, a doc, a config with its own check, or data:
 - `internal/files/testdata`: the files `Generate` must write, which its tests compare byte for
   byte.
 - `tools/notices.tmpl`: go-licenses reads it as `make notices` runs, in CI's `check` job.
-- `Makefile`, `.gitignore`, `.editorconfig`, `.claude/settings.json`, `.claude/lint-gates` and
-  the licenses: data, or read by the tool they are for. `tests/tools` runs the Makefile's recipes
-  that list files, `lint-file`'s among them.
+- `Makefile`, `.gitignore`, `.editorconfig`, `.claude/settings.json`, `.claude/lint-gates`, the
+  issue forms in `.github/ISSUE_TEMPLATE` and the licenses: data, or read by the tool they are for,
+  GitHub for the forms. `tests/tools` runs the Makefile's recipes that list files, `lint-file`'s
+  among them.
