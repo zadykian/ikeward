@@ -84,6 +84,7 @@
   "enabledPlugins": {
     "flow@zadykian": true,
     "docs@zadykian": true,
-    "lint@zadykian": true
+    "lint@zadykian": true,
+    "lean@zadykian": true
   }
 }
