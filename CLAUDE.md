@@ -135,9 +135,10 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
   It writes the toolkit's templates too: `.github/pull_request_template.md`, and the issue form
   and `config.yml` in `.github/ISSUE_TEMPLATE`, which turns blank issues off.
 - `.claude/`: Claude's rules, as [Where else to look](#where-else-to-look) lists them.
-  `settings.json` holds the permissions, and enables `flow`, `docs` and `lint`, the bundles of the
-  marketplace [zadykian/toolkit](https://github.com/zadykian/toolkit), at the release its `ref`
-  names, which the workflows' actions pin too. `lint-gates` adds to the lint plugin's gate code.
+  `settings.json` holds the permissions, and enables `flow`, `docs`, `lint` and `lean`, the
+  bundles of the marketplace [zadykian/toolkit](https://github.com/zadykian/toolkit), at the
+  release its `ref` names, which the workflows' actions pin too. `lint-gates` adds to the lint
+  plugin's gate code.
 
 ## Commands
 
@@ -260,9 +261,12 @@ skill of `flow`. Each commit passes `make check` and `make lint`.
   files.
 - The marketplace's skills, which ikeward uses as they are: `/flow:issue` plans and files an issue.
   `/flow:land`, run by hand only, lands a stack by GitHub's merge. `/docs:trim` trims comments and
-  docs to the policy. `/lint:split-file` splits a file over its cap.
+  docs to the policy. `/lint:split-file` splits a file over its cap. `/lean:cost`, run by hand
+  only, reports what sessions cost.
 - The lint plugin: after each Edit or Write, `make lint-file` runs the gates of the file's type,
   and gitleaks and denycheck on any file. As a turn ends, `make lint-tree`, which is `lint-local`,
   runs where the work tree changed. No gate runs in a tree with a commit that lacks its author's
   signature, or with gate code unlike `HEAD`'s, as `.claude/lint-gates` adds to it
   ([Claude Code's hooks](docs/checks.md#claude-codes-hooks)).
+- The [lean plugin](https://github.com/zadykian/toolkit/blob/main/docs/lean.md): its hooks
+  deny a workflow agent with no tier, and a foreground poll that no timeout bounds.
