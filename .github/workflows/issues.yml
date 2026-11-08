@@ -24,4 +24,4 @@ jobs:
     permissions:
       issues: write
     steps:
-      - uses: zadykian/toolkit/actions/issue@96c1f74b34a9585731a54a9dda8ede125537eba7 # v6.4.1
+      - uses: zadykian/toolkit/actions/issue@22f9336b4228616e8a4c89e07451c14dd3a28719 # v7.0.0
