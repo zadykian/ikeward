@@ -7,7 +7,7 @@ name: rules
 
 on:
   pull_request:
-    types: [opened, edited, reopened, synchronize]
+    types: [opened, edited, reopened, synchronize, ready_for_review]
 
 # Two runs of a pull request race to create each check's comment, so a newer event's run cancels
 # the older one.
