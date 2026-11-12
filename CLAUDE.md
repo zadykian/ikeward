@@ -135,8 +135,8 @@ employer and holds no secret, as [writing.md](.claude/rules/writing.md) says.
   It writes the toolkit's templates too: `.github/pull_request_template.md`, and the issue form
   and `config.yml` in `.github/ISSUE_TEMPLATE`, which turns blank issues off.
 - `.claude/`: Claude's rules, as [Where else to look](#where-else-to-look) lists them.
-  `settings.json` holds the permissions, and enables `flow`, `docs`, `lint` and `lean`, the
-  bundles of the marketplace [zadykian/toolkit](https://github.com/zadykian/toolkit), at the
+  `settings.json` holds the permissions, and enables `flow`, `docs`, `lint`, `lean` and `design`,
+  the bundles of the marketplace [zadykian/toolkit](https://github.com/zadykian/toolkit), at the
   release its `ref` names, which the workflows' actions pin too. `lint-gates` adds to the lint
   plugin's gate code.
 

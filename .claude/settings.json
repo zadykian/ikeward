@@ -85,6 +85,7 @@
     "flow@zadykian": true,
     "docs@zadykian": true,
     "lint@zadykian": true,
-    "lean@zadykian": true
+    "lean@zadykian": true,
+    "design@zadykian": true
   }
 }
