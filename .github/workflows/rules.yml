@@ -7,7 +7,7 @@ name: rules
 
 on:
   pull_request:
-    types: [opened, edited, reopened, synchronize]
+    types: [opened, edited, reopened, synchronize, ready_for_review]
 
 # Two runs of a pull request race to create each check's comment, so a newer event's run cancels
 # the older one.
@@ -26,6 +26,6 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: zadykian/toolkit/actions/atomic-commits@22f9336b4228616e8a4c89e07451c14dd3a28719 # v7.0.0
-      - uses: zadykian/toolkit/actions/pr-description@22f9336b4228616e8a4c89e07451c14dd3a28719 # v7.0.0
-      - uses: zadykian/toolkit/actions/banned-terms@22f9336b4228616e8a4c89e07451c14dd3a28719 # v7.0.0
+      - uses: zadykian/toolkit/actions/atomic-commits@381d7507e88bdfdca05830ba7486eecfa9b7d1ca # v7.1.0
+      - uses: zadykian/toolkit/actions/pr-description@381d7507e88bdfdca05830ba7486eecfa9b7d1ca # v7.1.0
+      - uses: zadykian/toolkit/actions/banned-terms@381d7507e88bdfdca05830ba7486eecfa9b7d1ca # v7.1.0
